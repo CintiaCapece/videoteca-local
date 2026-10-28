@@ -1,0 +1,15 @@
+datos/
+.venv/
+node_modules/
+herramientas/
+*.sqlite*
+*.db
+*.log
+.env
+.env.*
+__pycache__/
+*.pyc
+work/
+Thumbs.db
+.DS_Store
+

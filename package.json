@@ -1,0 +1,8 @@
+{
+  "name": "videoteca-local",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Catálogo privado de videos para Windows, discos externos y NAS",
+  "scripts": { "start": "node --disable-warning=ExperimentalWarning server.js --open", "test": "node --test test/*.test.js" },
+  "engines": { "node": ">=24" }
+}
