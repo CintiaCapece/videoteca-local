@@ -9,6 +9,15 @@ async function api(url,body){const response=await fetch(url,body===undefined?{}:
 function guarded(fn){return async(...args)=>{try{await fn(...args);}catch(e){toast(e.message);}};}
 function openSource(){$('sourceDialog').showModal();}
 for(const id of ['addSource','addTop','addEmpty'])$(id).onclick=openSource;
+$('browseSource').onclick=guarded(async()=>{
+  const button=$('browseSource'),form=$('sourceForm'),status=$('folderPickerStatus');
+  button.disabled=true;button.textContent='Selector abierto…';status.textContent='Elegí una carpeta en la ventana de Windows. Puede aparecer detrás del navegador.';
+  try{
+    const result=await api('/api/pick-folder',{initial:form.elements.root.value});
+    if(result.root){form.elements.root.value=result.root;if(!form.elements.name.value.trim())form.elements.name.value=result.root.replace(/[\\/]+$/,'').split(/[\\/]/).pop()||result.root;status.textContent='Carpeta seleccionada. Podés agregarla e inventariarla.';}
+    else status.textContent='Selección cancelada. Podés volver a elegir o escribir la ruta.';
+  }finally{button.disabled=false;button.textContent='Elegir carpeta…';if(status.textContent.startsWith('Elegí una carpeta'))status.textContent='No se pudo completar la selección. Podés escribir la ruta manualmente.';}
+});
 document.addEventListener('click',e=>{if(e.target.hasAttribute('data-close'))e.target.closest('dialog').close();});
 $('sourceForm').onsubmit=guarded(async e=>{e.preventDefault();const form=e.target,b=Object.fromEntries(new FormData(form));const button=form.querySelector('[type=submit]');button.disabled=true;try{await api('/api/sources',b);$('sourceDialog').close();form.reset();await refresh();const added=state.sources.find(s=>s.root.toLowerCase()===b.root.trim().replace(/\\$/,'').toLowerCase())||state.sources.at(-1);source=added.id;await loadVideos();await start('scan');}finally{button.disabled=false;}});
 async function refresh(){state=await api('/api/state');$('navCount').textContent=state.stats.count;$('statCount').textContent=Number(state.stats.count).toLocaleString('es-AR');$('statBytes').textContent=bytes(state.stats.bytes);$('statPending').textContent=Number(state.stats.pending||0).toLocaleString('es-AR');$('statAI').textContent=state.stats.analyzed||0;

@@ -13,7 +13,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - run: node --test test/catalog.test.js
+      - run: node --test test/catalog.test.js test/folder-picker.test.js
       - name: Comprobar iniciador con Windows PowerShell
         shell: powershell
         run: .\Iniciar.ps1 -SoloComprobar

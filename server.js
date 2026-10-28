@@ -5,6 +5,8 @@ const path=require('node:path');
 const crypto=require('node:crypto');
 const {spawn}=require('node:child_process');
 const {openDatabase,createEngine,within,fingerprint,CATEGORIES}=require('./lib');
+const {chooseFolder}=require('./folder-picker');
+let pickingFolder=false;
 const PORT=Number(process.env.VIDEOTECA_PORT||43127);
 const DATA=path.resolve(process.env.VIDEOTECA_DATA||path.join(__dirname,'datos'));
 const db=openDatabase(DATA),engine=createEngine(db,DATA);
@@ -49,6 +51,11 @@ const server=http.createServer(async(req,res)=>{
       const total=db.prepare('SELECT COUNT(*) n FROM videos v'+where).get(...args).n;
       const rows=db.prepare('SELECT v.*,s.name source_name FROM videos v JOIN sources s ON s.id=v.source_id'+where+' ORDER BY v.name COLLATE NOCASE LIMIT ? OFFSET ?').all(...args,limit,page*limit);
       return json(res,{rows,total,page,pages:Math.ceil(total/limit)});
+    }
+    if(req.method==='POST'&&p==='/api/pick-folder'){
+      if(pickingFolder)return json(res,{error:'Ya hay un selector de carpetas abierto. Revisá las ventanas de Windows.'},409);
+      const b=await body(req);pickingFolder=true;
+      try{return json(res,await chooseFolder(b.initial||''));}finally{pickingFolder=false;}
     }
     if(req.method==='POST'&&p==='/api/sources'){
       const b=await body(req),root=path.resolve(String(b.root||'').trim());
