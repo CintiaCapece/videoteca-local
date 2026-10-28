@@ -1,3 +1,4 @@
+param([switch]$SoloComprobar)
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $runtimeCommand = Get-Command node -ErrorAction SilentlyContinue
@@ -6,8 +7,13 @@ if (-not (Test-Path -LiteralPath $runtimePath)) {
     Write-Host 'No se encontro Node.js. Instala Node.js 24 LTS desde https://nodejs.org y volve a abrir Iniciar.cmd.'
     exit 1
 }
-$runtimeVersion = & $runtimePath -p 'process.versions.node.split(".")[0]'
-if ([int]$runtimeVersion -lt 24) { Write-Host 'Se necesita Node.js 24 o posterior.'; exit 1 }
+$runtimeVersion = & $runtimePath --version
+if ($LASTEXITCODE -ne 0 -or $runtimeVersion -notmatch '^v(\d+)\.') {
+    Write-Host 'No se pudo comprobar la version de Node.js.'
+    exit 1
+}
+if ([int]$Matches[1] -lt 24) { Write-Host 'Se necesita Node.js 24 o posterior.'; exit 1 }
+if ($SoloComprobar) { Write-Host "Node.js compatible: $runtimeVersion"; exit 0 }
 $ffmpegLocal = Join-Path $PSScriptRoot 'herramientas\ffmpeg.exe'
 $ffprobeLocal = Join-Path $PSScriptRoot 'herramientas\ffprobe.exe'
 if (Test-Path -LiteralPath $ffmpegLocal) { $env:VIDEOTECA_FFMPEG = $ffmpegLocal }
