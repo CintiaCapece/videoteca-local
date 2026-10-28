@@ -27,7 +27,7 @@ Para configurar esas herramientas, abrí **Configurar-herramientas.cmd**. Descar
 
 ## Sitio público y aplicación local
 
-GitHub Pages aloja sólo `docs/`: presentación, demo interactiva de datos inventados y un ZIP con el código de la aplicación. La demo no consulta la computadora, no se conecta al servidor local y no ejecuta IA. Los cambios de la demo duran hasta recargar la página.
+GitHub Pages aloja sólo `docs/`: presentación, demo interactiva de datos inventados y un ZIP con el código de la aplicación. El catálogo de ejemplo no consulta la computadora ni se conecta al servidor local. Sus cambios duran hasta recargar la página. La demo adicional de transcripción y minuta procesa el archivo o texto elegido en el navegador.
 
 La aplicación completa se ejecuta en la computadora del usuario. Las bases de datos, miniaturas, modelos y bibliotecas personales no se incluyen en este repositorio. Para respaldar el catálogo, cerrá la aplicación y copiá su carpeta `datos` completa. Mantené esa carpeta en almacenamiento local, incluso si los videos están en un NAS.
 
@@ -61,3 +61,20 @@ La búsqueda es textual; no hay búsqueda semántica ni detección de recortes o
 Ejecutá Configurar-minutas.cmd si faltan Qwen3 4B y Whisper medium. Descarga varios GB y no procesa videos. No hay garantía de transcripción literal exacta ni de una minuta exhaustiva. Las citas se comprueban como coincidencias de texto; esa comprobación no garantiza que el resumen interprete correctamente el contexto. La transcripción y la lectura visual pueden contener errores. El texto del video se trata como datos, no como instrucciones.
 
 El esquema del catálogo se amplía automáticamente al iniciar. Las minutas y el detalle de transcripción se incluyen en la exportación JSON. La aplicación no sube los videos ni el audio a servicios externos.
+
+
+## Demo gratuita en el navegador
+
+[Transcripción y minuta sin instalar](https://cintiacapece.github.io/videoteca-local/ia.html). Seleccioná un archivo de hasta 5 minutos y 100 MB o pegá una transcripción de hasta 12.000 caracteres. Revisá el texto antes de preparar la minuta. Incluye ejemplo ficticio, progreso por fragmentos, tiempo transcurrido, cancelación, descarga TXT y minuta Markdown.
+
+**Modo rápido, predeterminado:** no descarga un modelo de texto. Usa reglas para seleccionar frases literales con expresiones explícitas de acuerdos, tareas y pendientes. La vista previa son las primeras frases de cada fragmento, no una identificación semántica de los temas importantes ni una síntesis narrativa. Los nombres se toman de etiquetas de hablante escritas como `Ana:`; no hay identificación de voces ni lectura de nombres en pantalla. Las reglas pueden omitir información o clasificar mal. Un nombre mencionado no confirma asistencia.
+
+**IA de texto experimental:** descarga Qwen2.5 Instruct 0.5B para proponer citas de temas y nombres; los acuerdos, tareas y pendientes siguen usando reglas explícitas. Se comprueban las referencias a frases existentes y los nombres literales, pero esto no verifica la interpretación. En las pruebas, el modelo compacto clasificó mal varias frases. No debe usarse como minuta fiable sin revisión. Se descartó el modelo de 1.5B como opción pública porque falló al ejecutarse en el navegador de prueba, tanto en q4 como en la prueba de menor memoria.
+
+El audio usa Whisper base q8 en CPU por tramos de 25 segundos; puede contener errores y cortes de palabras en los límites. El motor es Transformers.js 3.8.1 dentro de un Web Worker. La IA de texto intenta WebGPU (q4f16 si admite shader-f16) con alternativa WASM/q4; se puede elegir CPU explícitamente. Chrome/Edge de escritorio recomendados. La GPU, memoria, navegador y códecs pueden limitar su funcionamiento. La primera descarga de los modelos requiere varios cientos de MB y puede tardar minutos. Los porcentajes de descarga son por componente y los de procesamiento avanzan por fragmento; no estiman tiempo restante.
+
+Los modelos se descargan desde Hugging Face y el motor/WASM desde jsDelivr al solicitar una tarea. Esos servicios reciben solicitudes de descarga; la aplicación no envía archivos ni transcripciones a un servidor de IA. Los modelos pueden quedar en la caché. No se guarda historial de contenido: Limpiar termina el worker y borra los resultados de la página, pero no la caché de modelos. Recargar pierde los resultados. Exportá para conservarlos.
+
+YouTube no se descarga automáticamente: se puede copiar una transcripción disponible o seleccionar un archivo que el visitante pueda procesar. No se requieren cuenta, claves, instalaciones, servicios pagos ni Hugging Face Spaces. GitHub Pages sirve los archivos estáticos.
+
+Pruebas de límites, fragmentación, referencias, nombres y reglas: `node --test test/browser-demo.test.mjs`. Se probó en navegador una transcripción de voz sintética (con errores de reconocimiento), la minuta rápida con datos ficticios, la validación de entrada vacía, la cancelación y la descarga Markdown. Esto no garantiza calidad con grabaciones reales. Referencias: [Transformers.js](https://huggingface.co/docs/transformers.js/v3.8.1/index), [Whisper base ONNX](https://huggingface.co/Xenova/whisper-base), [Qwen2.5 ONNX](https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct).
