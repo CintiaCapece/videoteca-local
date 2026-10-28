@@ -75,6 +75,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(req.method==='POST'&&p==='/api/jobs'){
       const b=await body(req),payload={sourceId:b.sourceId||undefined,model:String(b.model||'qwen3-vl:2b-instruct-q4_K_M'),limit:Math.min(100,Math.max(1,Number(b.limit)||50)),device:b.device==='cuda'?'cuda':'cpu'};
+      if(b.type==='transcribe')payload.videoIds=b.videoIds;
       return json(res,{id:engine.start(b.type,payload)});
     }
     if(req.method==='POST'&&p==='/api/job-control'){const b=await body(req);if(b.action==='pause')engine.pause(b.id);else if(b.action==='resume')engine.resume(b.id);else throw new Error('Acción inválida.');return json(res,{ok:true});}
