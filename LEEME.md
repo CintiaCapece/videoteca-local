@@ -32,6 +32,22 @@ La selección de fuente limita los trabajos. Las categorías y la búsqueda sól
 
 ## Instalar miniaturas y metadatos
 
+### Configuracion automatica recomendada
+
+Abri **Configurar-herramientas.cmd**. Descarga FFmpeg desde Gyan (proveedor enlazado por ffmpeg.org), Ollama desde su repositorio oficial y el modelo Qwen3-VL 2B Instruct Q4. Crea un entorno Python propio e instala faster-whisper para CPU. Puede reutilizar Python de Codex; si no encuentra un Python compatible, indica como instalarlo desde python.org.
+
+Reserva al menos 15 GB libres para descargas, extraccion y modelos. La primera configuracion necesita internet; las descargas pueden tardar bastante. No instala CUDA ni cambia los controladores. No configura servicios de inicio automatico de Windows.
+
+El iniciador abre Ollama portable en segundo plano, limitado a la propia computadora. Si ya hay un servicio Ollama en ese puerto, lo reutiliza; en ese caso el modelo se guarda en la ubicacion configurada por ese servicio. Si lo inicia esta aplicacion, usa `datos/modelos/ollama`. Cerrar Videoteca no detiene Ollama; los modelos visuales se descargan de memoria al terminar cada peticion.
+
+La configuracion genera un video de color verde con voz sintetica, comprueba FFmpeg/ffprobe, solicita una descripcion a Ollama y transcribe la voz. Solo escribe `datos/pruebas` y sus propias herramientas. Al finalizar guarda `datos/pruebas/resultado.json`. Si falla, no declara completada la instalacion y muestra el paso que requiere revision. No inicia ningun inventario de tus videos.
+
+Para comprobar sin descargar ni instalar: `powershell -File .\Configurar-herramientas.ps1 -SoloComprobar`. El indicador `pruebaCompleta` informa si existe un resultado de una prueba anterior; no garantiza el funcionamiento actual.
+
+Despues de configurar, cierra cualquier instancia anterior y abri **Iniciar.cmd**. En **Herramientas y ayuda** deben aparecer FFmpeg, ffprobe, Ollama y Python + faster-whisper disponibles.
+
+### Alternativa manual
+
 FFmpeg y ffprobe no estaban instalados durante la creación. Descargá una compilación para Windows siguiendo los enlaces de https://ffmpeg.org/download.html.
 
 Opción simple: creá una carpeta `herramientas` junto a `Iniciar.cmd` y colocá allí `ffmpeg.exe` y `ffprobe.exe`. También se pueden instalar en PATH. Reiniciá la aplicación y verificá **Herramientas y ayuda**.

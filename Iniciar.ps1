@@ -14,5 +14,7 @@ if (Test-Path -LiteralPath $ffmpegLocal) { $env:VIDEOTECA_FFMPEG = $ffmpegLocal 
 if (Test-Path -LiteralPath $ffprobeLocal) { $env:VIDEOTECA_FFPROBE = $ffprobeLocal }
 $pythonLocal = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
 if (Test-Path -LiteralPath $pythonLocal) { $env:VIDEOTECA_PYTHON = $pythonLocal }
+. (Join-Path $PSScriptRoot 'Ollama-local.ps1')
+try { Start-VideotecaOllama $PSScriptRoot | Out-Null } catch { Write-Warning $_.Exception.Message }
 & $runtimePath --disable-warning=ExperimentalWarning (Join-Path $PSScriptRoot 'server.js') --open
 exit $LASTEXITCODE

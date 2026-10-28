@@ -13,6 +13,8 @@ Un catálogo privado para encontrar y organizar videos guardados en tu computado
 
 El inventario, las etiquetas, la búsqueda textual, los duplicados SHA-256 y las exportaciones funcionan sin dependencias npm. FFmpeg habilita miniaturas y metadatos; Ollama, la IA visual; Python y faster-whisper, la transcripción opcional. Consultá [LEEME.md](LEEME.md).
 
+Para configurar esas herramientas, abrí **Configurar-herramientas.cmd**. Descarga los componentes, instala el audio para CPU y ejecuta una prueba con video y voz sintéticos. Requiere internet y al menos 15 GB libres. Consultá la guía para ver ubicaciones, límites y alternativas manuales.
+
 ## Qué incluye
 
 - Catálogo persistente SQLite, filtros y edición de categorías, etiquetas y notas.
