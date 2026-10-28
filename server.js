@@ -38,7 +38,7 @@ const server=http.createServer(async(req,res)=>{
     if(req.method!=='GET'&&(req.headers['x-videoteca-token']!==token||req.headers.origin&&req.headers.origin!==origin))return json(res,{error:'Solicitud rechazada. Recargá la aplicación.'},403);
     if(req.method==='GET'&&p==='/api/state'){
       const sources=await Promise.all(db.prepare('SELECT s.*,(SELECT COUNT(*) FROM videos v WHERE v.source_id=s.id) AS count FROM sources s ORDER BY created').all().map(async s=>({...s,online:await exists(s.root)})));
-      return json(res,{sources,categories:CATEGORIES,jobs:db.prepare('SELECT * FROM jobs ORDER BY created DESC LIMIT 12').all(),stats:db.prepare(`SELECT COUNT(*) AS count,COALESCE(SUM(size),0) AS bytes,SUM(category='Pendiente') AS pending,SUM(thumbnail IS NOT NULL) AS thumbnails,SUM(summary!='') AS analyzed,SUM(missing=1) AS missing FROM videos`).get(),duplicates:db.prepare('SELECT COUNT(*) AS groups,COALESCE(SUM(n-1),0) AS extra,COALESCE(SUM((n-1)*size),0) AS bytes FROM (SELECT size,COUNT(*) n FROM videos WHERE hash IS NOT NULL AND missing=0 GROUP BY hash HAVING COUNT(*)>1)').get()});
+      return json(res,{sources,categories:CATEGORIES,jobs:db.prepare('SELECT * FROM jobs ORDER BY created DESC LIMIT 12').all().map(job=>({...job,detail:JSON.parse(db.prepare('SELECT info FROM job_progress WHERE job_id=?').get(job.id)?.info||'null')})),stats:db.prepare(`SELECT COUNT(*) AS count,COALESCE(SUM(size),0) AS bytes,SUM(category='Pendiente') AS pending,SUM(thumbnail IS NOT NULL) AS thumbnails,SUM(summary!='') AS analyzed,SUM(missing=1) AS missing FROM videos`).get(),duplicates:db.prepare('SELECT COUNT(*) AS groups,COALESCE(SUM(n-1),0) AS extra,COALESCE(SUM((n-1)*size),0) AS bytes FROM (SELECT size,COUNT(*) n FROM videos WHERE hash IS NOT NULL AND missing=0 GROUP BY hash HAVING COUNT(*)>1)').get()});
     }
     if(req.method==='GET'&&p==='/api/tools')return json(res,await engine.toolsStatus());
     if(req.method==='GET'&&p==='/api/videos'){
@@ -75,7 +75,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(req.method==='POST'&&p==='/api/jobs'){
       const b=await body(req),payload={sourceId:b.sourceId||undefined,model:String(b.model||'qwen3-vl:2b-instruct-q4_K_M'),limit:Math.min(100,Math.max(1,Number(b.limit)||50)),device:b.device==='cuda'?'cuda':'cpu'};
-      if(b.type==='transcribe')payload.videoIds=b.videoIds;
+      if(b.type==='transcribe'){payload.videoIds=b.videoIds;payload.profile=b.profile==='fast'?'fast':'balanced';payload.language=['es','en'].includes(b.language)?b.language:'auto';}
       return json(res,{id:engine.start(b.type,payload)});
     }
     if(req.method==='POST'&&p==='/api/job-control'){const b=await body(req);if(b.action==='pause')engine.pause(b.id);else if(b.action==='resume')engine.resume(b.id);else throw new Error('Acción inválida.');return json(res,{ok:true});}

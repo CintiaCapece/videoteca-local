@@ -4,6 +4,7 @@ const fsp = fs.promises;
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
+const {progressReader}=require('./stream-progress');
 const { DatabaseSync } = require('node:sqlite');
 const EXTENSIONS = new Set(['.mp4','.mov','.mkv','.avi','.webm','.m4v','.mts','.m2ts','.mpg','.mpeg','.wmv','.3gp','.ts','.vob','.flv','.ogv']);
 const CATEGORIES = ['Pendiente','Personal y viajes','Clases y cursos','Trabajo y reuniones','Grabaciones de pantalla','Entretenimiento','Otros'];
@@ -18,6 +19,7 @@ function openDatabase(dir) {
     CREATE INDEX IF NOT EXISTS videos_hash ON videos(hash);
     CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY,type TEXT NOT NULL,status TEXT NOT NULL,payload TEXT NOT NULL,progress INTEGER NOT NULL DEFAULT 0,total INTEGER NOT NULL DEFAULT 0,message TEXT NOT NULL DEFAULT '',errors INTEGER NOT NULL DEFAULT 0,created TEXT NOT NULL,updated TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY,job_id TEXT,created TEXT NOT NULL,message TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS job_progress(job_id TEXT PRIMARY KEY,info TEXT NOT NULL);
     UPDATE jobs SET status='interrupted',message='Interrumpido al cerrar. Podés reanudarlo.' WHERE status IN ('running','queued');`);
   return db;
 }
@@ -29,14 +31,15 @@ function within(root, relative) {
   return full;
 }
 
-function run(command, args, timeout=120000) {
+function run(command, args, timeout=120000, onProgress=null) {
   return new Promise((resolve,reject) => {
     const child = spawn(command,args,{windowsHide:true,stdio:['ignore','pipe','pipe'],shell:false});
     let out='',err='',settled=false;
     const finish=(e,v)=>{if(settled)return;settled=true;clearTimeout(timer);e?reject(e):resolve(v);};
     const timer=setTimeout(()=>{child.kill();finish(new Error('Tiempo de espera agotado.'));},timeout);
     child.stdout.on('data',x=>{out+=x;if(out.length>8*1024*1024){child.kill();finish(new Error('Salida demasiado grande.'));}});
-    child.stderr.on('data',x=>{err=(err+x).slice(-8000);});
+    const readProgress=onProgress?progressReader(onProgress):null;
+    child.stderr.on('data',x=>{err=(err+x).slice(-8000);if(readProgress)readProgress(x);});
     child.on('error',e=>finish(e));child.on('close',code=>finish(code===0?null:new Error(err||`${command}: código ${code}`),out));
   });
 }
@@ -149,14 +152,17 @@ function createEngine(db, dataDir, options={}) {
     update(job.id,{total:rows.length,progress:0});let done=0,errors=0;
     for(const video of rows){
       if(stopped())throw new Error('PAUSED');
-      update(job.id,{message:video.name});
+        update(job.id,{message:video.name});
+        if(job.type==='transcribe')db.prepare('DELETE FROM job_progress WHERE job_id=?').run(job.id);
       try{
         if(job.type==='duplicates'){const file=await verified(video),hash=await fingerprint(file,stopped);db.prepare('UPDATE videos SET hash=? WHERE id=?').run(hash,video.id);}
         else if(job.type==='metadata')await enrich(video,capabilities);
         else if(job.type==='transcribe'){
           if(!capabilities.whisper)throw new Error('Instalá Python y faster-whisper. Consultá LEEME.md.');
           const file=await verified(video);
-          const text=await run(process.env.VIDEOTECA_PYTHON||'python',[path.join(__dirname,'transcribir.py'),file,path.join(dataDir,'modelos'),payload.device==='cuda'?'cuda':'cpu'],6*60*60*1000);
+          const text=await run(process.env.VIDEOTECA_PYTHON||'python',['-u',path.join(__dirname,'transcribir.py'),file,path.join(dataDir,'modelos'),payload.device==='cuda'?'cuda':'cpu',payload.profile==='fast'?'fast':'balanced',['es','en'].includes(payload.language)?payload.language:'auto'],6*60*60*1000,info=>{
+            db.prepare('INSERT INTO job_progress(job_id,info) VALUES(?,?) ON CONFLICT(job_id) DO UPDATE SET info=excluded.info').run(job.id,JSON.stringify(info));
+          });
           const result=JSON.parse(text);db.prepare('UPDATE videos SET transcript=?,transcript_model=? WHERE id=?').run(result.text,result.model,video.id);
         }else await describe(video,payload,capabilities,stopped);
       }catch(e){if(e.message==='PAUSED')throw e;errors++;log(job.id,`${video.name}: ${e.message}`);if(job.type==='metadata')db.prepare('UPDATE videos SET probe_error=? WHERE id=?').run(e.message.slice(0,1000),video.id);}

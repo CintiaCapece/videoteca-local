@@ -117,3 +117,10 @@ Variables opcionales: `VIDEOTECA_PORT` (predeterminado 43127), `VIDEOTECA_DATA` 
 Desarrollo: `node server.js` para iniciar sin abrir navegador; `node --test test/*.test.js` para ejecutar pruebas. No hay instalación npm.
 
 El primer piloto recomendado sigue siendo 50–100 videos variados para inventario y miniaturas, 10 para visión y 1–3 para transcripción. El tamaño de 1 TB no permite estimar duración sin medir las horas y los formatos reales.
+
+
+## Progreso y velocidad de transcripción
+
+Los trabajos nuevos muestran fases de carga, preparación de audio y transcripción. El porcentaje se calcula con la posición del último segmento procesado sobre la duración total del audio; puede avanzar a saltos y saltar silencios. Durante carga y preparación no hay un porcentaje fiable. El tiempo restante es una estimación que se estabiliza con el avance. El porcentaje corresponde al video actual; el contador sigue indicando archivos procesados.
+
+El modo Rápido usa el mismo modelo small, beam_size=1 y ocho hilos CPU; Equilibrado usa beam_size=3 y cuatro hilos. Rápido puede reducir precisión en audios difíciles y su mejora debe medirse con material real. Elegí Español o Inglés si conocés el idioma, o detección automática si cambia. La GPU sigue siendo opcional y requiere cuBLAS CUDA 12 y cuDNN 9 compatibles. Actualizar no cambia un trabajador que ya está ejecutándose: esperá a que termine antes de reiniciar.
