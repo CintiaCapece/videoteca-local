@@ -1,5 +1,5 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const os=require('node:os');const path=require('node:path');
-const {openDatabase,selectedTranscriptionVideos,createEngine}=require('../lib');
+const {openDatabase,selectedTranscriptionVideos,selectedVisualVideos,createEngine}=require('../lib');
 test('transcripción exige IDs explícitos, conserva selección entre fuentes y al reanudar omite completados',()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'video-select-'));const db=openDatabase(dir);
   try{
@@ -11,6 +11,9 @@ test('transcripción exige IDs explícitos, conserva selección entre fuentes y 
     db.prepare('UPDATE videos SET transcript=? WHERE id=?').run('terminado','one');
     assert.deepEqual(selectedTranscriptionVideos(db,['one','two']).map(v=>v.id),['two']);
     for(const ids of [undefined,[],['no-existe'],['silent'],['missing'],Array(101).fill('two'),['two',null]])assert.throws(()=>selectedTranscriptionVideos(db,ids));
-    const engine=createEngine(db,dir);assert.throws(()=>engine.start('transcribe',{}));assert.throws(()=>engine.start('transcribe',{videoIds:['done']}));assert.equal(db.prepare('SELECT COUNT(*) n FROM jobs').get().n,0);
+    db.prepare('UPDATE videos SET summary=? WHERE id=?').run('Analizado','done');
+    assert.deepEqual(selectedVisualVideos(db,['one','done','silent']).map(v=>v.id),['one','silent']);
+    for(const ids of [undefined,[],['no-existe'],['missing']])assert.throws(()=>selectedVisualVideos(db,ids));
+    const engine=createEngine(db,dir);assert.throws(()=>engine.start('transcribe',{}));assert.throws(()=>engine.start('transcribe',{videoIds:['done']}));assert.throws(()=>engine.start('ai',{}));assert.throws(()=>engine.start('ai',{videoIds:['done']}));assert.equal(db.prepare('SELECT COUNT(*) n FROM jobs').get().n,0);
   }finally{db.close();fs.rmSync(dir,{recursive:true,force:true});}
 });
