@@ -97,7 +97,10 @@ try {
         Invoke-Checked $basePython @('-m','venv',(Join-Path $appRoot '.venv'))
     }
     Invoke-Checked $python @('-m','pip','install','--disable-pip-version-check','-r',(Join-Path $appRoot 'requirements-audio.txt'))
-    Invoke-Checked $python @('-c','import faster_whisper; print("Audio disponible")')
+    # Windows PowerShell 5.1 elimina comillas internas al pasar argumentos nativos.
+    # La comprobacion no necesita cadenas Python ni salida del interprete.
+    Invoke-Checked $python @('-c','import faster_whisper')
+    Write-Host 'Audio disponible'
 
     Write-Host '[3/5] Ollama para Windows x64'
     if (-not (Test-Path -LiteralPath $ollama)) {
