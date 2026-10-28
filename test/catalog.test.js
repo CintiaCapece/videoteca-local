@@ -47,6 +47,8 @@ test('servidor HTTP: protección de escrituras, búsqueda, edición, reproducci�
     const range=await fetch(base+'/video/'+video.id,{headers:{range:'bytes=2-5'}});assert.equal(range.status,206);assert.equal(await range.text(),'2345');
     assert.equal((await fetch(base+'/video/'+video.id,{headers:{range:'bytes=20-30'}})).status,416);
     const exported=await(await fetch(base+'/api/export')).json();assert.equal(exported.videos[0].tags,'redes');const csv=await(await fetch(base+'/api/export?format=csv')).text();assert.ok(csv.includes("'=formula"));
+    assert.equal((await post('/api/transcript',{id:video.id,text:'[00:00:00] Texto corregido.'})).status,200);
+    const corrected=(await(await fetch(base+'/api/videos')).json()).rows[0];assert.equal(corrected.transcript,'[00:00:00] Texto corregido.');assert.equal(corrected.transcript_model,'Corregida manualmente');assert.equal(corrected.minutes,null);
     assert.equal(await fs.readFile(path.join(root,'clip.mp4'),'utf8'),'0123456789');
   }finally{child.kill();await new Promise(resolve=>{if(child.exitCode!==null)resolve();else child.once('exit',resolve);});await fs.rm(dir,{recursive:true,force:true});}
 });

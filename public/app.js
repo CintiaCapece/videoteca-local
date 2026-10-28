@@ -10,10 +10,11 @@ function updateSelection(){
   $('clearSelection').disabled=!selectedVideos.size;
   const audio=forAction('transcribe').length,visual=forAction('ai').length;
   $('transcribeButton').textContent=selectedVideos.size?`♫ Transcribir (${audio})`:'♫ Transcribir';
+  $('minutesButton').textContent=selectedVideos.size?`▤ Generar minuta (${forAction('minutes').length})`:'▤ Generar minuta';
   $('aiButton').textContent=selectedVideos.size?`✦ Analizar con IA (${visual})`:'✦ Analizar con IA';
 }
 function eligible(v){return !v.missing&&state.sources.find(s=>s.id===v.source_id)?.online;}
-function forAction(type){return [...selectedVideos.values()].filter(v=>eligible(v)&&(type==='ai'?!v.summary:v.transcript===null&&v.has_audio!==0));}
+function forAction(type){return [...selectedVideos.values()].filter(v=>eligible(v)&&(type==='ai'?!v.summary:type==='minutes'?Boolean(v.transcript?.trim()):v.has_audio!==0));}
 function transcriptionStatus(detail){
   const phases={loading:'Cargando el modelo',preparing:'Preparando audio y detectando voz',transcribing:'Transcribiendo',complete:'Guardando transcripción'};
   const percent=Number.isFinite(detail.percent)?Math.min(100,Math.max(0,detail.percent)):null;
@@ -41,7 +42,7 @@ async function refresh(){state=await api('/api/state');$('navCount').textContent
   $('allNav').classList.toggle('selected',!source&&!duplicates);$('dupeNav').classList.toggle('selected',duplicates);
   if(!$('category').dataset.ready){$('category').insertAdjacentHTML('beforeend',state.categories.map(c=>`<option>${esc(c)}</option>`).join(''));$('category').dataset.ready='1';}
   $('viewTitle').textContent=duplicates?'Duplicados exactos':source?state.sources.find(s=>s.id===source)?.name||'Videos':'Todos los videos';
-  const job=state.jobs[0];if(job?.status==='done'&&job.errors)job.status='done_with_errors';$('jobPanel').classList.toggle('has-errors',Boolean(job?.errors));$('jobPanel').hidden=!job;if(job){const active=['running','queued'].includes(job.status);const names={scan:'Inventario',metadata:'Miniaturas y datos',duplicates:'Duplicados SHA-256',ai:'Análisis visual',transcribe:'Transcripción'};const statuses={running:'En curso',queued:'Iniciando',done:'Finalizado',done_with_errors:'Finalizado con errores',paused:'Pausado',interrupted:'Interrumpido',failed:'Revisar'};
+  const job=state.jobs[0];if(job?.status==='done'&&job.errors)job.status='done_with_errors';$('jobPanel').classList.toggle('has-errors',Boolean(job?.errors));$('jobPanel').hidden=!job;if(job){const active=['running','queued'].includes(job.status);const names={scan:'Inventario',metadata:'Miniaturas y datos',duplicates:'Duplicados SHA-256',ai:'Análisis visual',transcribe:'Transcripción',minutes:'Minuta de reunión'};const statuses={running:'En curso',queued:'Iniciando',done:'Finalizado',done_with_errors:'Finalizado con errores',paused:'Pausado',interrupted:'Interrumpido',failed:'Revisar'};
     $('jobPanel').innerHTML=`<div class="job-line"><strong>${names[job.type]} · ${statuses[job.status]} ${job.total?`(${job.progress}/${job.total})`:''}</strong><div>${active?`<button data-job="${job.id}" data-action="pause">Pausar</button>`:['paused','interrupted','failed','done_with_errors'].includes(job.status)?`<button data-job="${job.id}" data-action="resume">${job.status==='done_with_errors'?'Reintentar pendientes':'Reanudar'}</button>`:''}${job.errors||job.status==='failed'?'<button id="showErrors">Ver incidencias</button>':''}</div></div><p>${esc(job.message)}</p>${active&&job.type==='transcribe'&&job.detail?transcriptionStatus(job.detail):active?`<progress ${job.total&&job.type!=='scan'?`value="${job.progress}" max="${job.total}"`:''}></progress>`:''}<div id="jobErrors"></div>`;
   }
   $('scanButton').disabled=!source;
@@ -82,14 +83,48 @@ $('clearSelection').onclick=()=>{selectedVideos.clear();for(const input of $('gr
 $('selectPage').onclick=()=>{for(const v of rows.filter(eligible)){if(selectedVideos.size>=100&&!selectedVideos.has(v.id)){toast('Podés seleccionar hasta 100 videos por trabajo.');break;}selectedVideos.set(v.id,v);}for(const input of $('grid').querySelectorAll('[data-select-video]'))input.checked=selectedVideos.has(input.dataset.selectVideo);updateSelection();};
 $('grid').addEventListener('change',e=>{const id=e.target.dataset.selectVideo;if(!id)return;if(e.target.checked){if(selectedVideos.size>=100){e.target.checked=false;toast('Podés seleccionar hasta 100 videos por trabajo.');return;}selectedVideos.set(id,rows.find(v=>v.id===id));}else selectedVideos.delete(id);updateSelection();});
 let transcribeIds=[];
-$('transcribeButton').onclick=guarded(async()=>{if(!forAction('transcribe').length){toast('Marcá videos con audio que todavía no tengan transcripción.');return;}toast('Comprobando transcripción local…');const tools=await api('/api/tools');if(!tools.whisper){$('toolsDialog').showModal();await showTools();return;}transcribeIds=selectionList('transcribe','transcribe');$('transcribeDialog').showModal();});
-$('transcribeForm').onsubmit=guarded(async e=>{e.preventDefault();const b=Object.fromEntries(new FormData(e.target));const button=e.target.querySelector('[type=submit]');button.disabled=true;try{await start('transcribe',{sourceId:undefined,videoIds:transcribeIds,device:b.device,profile:b.profile,language:b.language});$('transcribeDialog').close();$('clearSelection').click();}finally{button.disabled=false;}});
+$('transcribeButton').onclick=guarded(async()=>{if(!forAction('transcribe').length){toast('Marcá videos con audio para transcribir o volver a transcribir.');return;}toast('Comprobando transcripción local…');const tools=await api('/api/tools');if(!tools.whisper){$('toolsDialog').showModal();await showTools();return;}transcribeIds=selectionList('transcribe','transcribe');$('transcribeDialog').showModal();});
+$('transcribeForm').onsubmit=guarded(async e=>{e.preventDefault();const b=Object.fromEntries(new FormData(e.target));const button=e.target.querySelector('[type=submit]');button.disabled=true;try{await start('transcribe',{sourceId:undefined,videoIds:transcribeIds,device:b.device,profile:b.profile,language:b.language,overwrite:true});$('transcribeDialog').close();$('clearSelection').click();}finally{button.disabled=false;}});
 $('grid').onclick=guarded(async e=>{const card=e.target.closest('[data-video]');if(!card)return;const v=rows.find(x=>x.id===card.dataset.video),s=state.sources.find(x=>x.id===v.source_id);
   $('detailContent').innerHTML=`<div class="dialog-heading"><h2>${esc(v.name)}</h2><button class="close" data-close>×</button></div>${!v.missing&&s?.online?`<video controls preload="none" ${v.thumbnail?`poster="/thumbnail/${v.id}"`:''} src="/video/${v.id}"></video><p class="hint">La reproducción depende del códec y del navegador. Si no se reproduce, abrí el archivo desde su ubicación con tu reproductor habitual.</p>`:'<div class="notice">Fuente desconectada o archivo no encontrado. Tus etiquetas y análisis se conservan.</div>'}<div class="details-meta"><span>${duration(v.duration)}</span><span>${bytes(v.size)}</span><span>${v.width?v.width+' × '+v.height:'Resolución pendiente'}</span></div><p class="path">${esc(s?.root)}${s?.root.endsWith('\\')?'':'\\'}${esc(v.rel)}</p><form id="editForm"><label>Categoría<select name="category" id="editCategory">${state.categories.map(c=>`<option ${v.category===c?'selected':''}>${esc(c)}</option>`).join('')}</select></label><label>Etiquetas (separadas por comas)<input name="tags" value="${esc(v.tags)}" placeholder="Ej.: vacaciones, familia, 2024"></label><label>Notas<input name="notes" value="${esc(v.notes)}" placeholder="Agregá contexto para encontrarlo después"></label>${v.summary?`<div class="notice">✦ Análisis parcial de 5 fotogramas · ${esc(v.ai_model)}<br>Categoría sugerida: <strong>${esc(v.ai_category)}</strong> <button type="button" id="applySuggestion">Usar sugerencia</button></div><div class="description">${esc(v.summary)}</div>`:''}${v.hash?`<p class="hint">SHA-256: ${esc(v.hash)}</p>`:''}<div class="dialog-footer"><button type="button" data-close>Cerrar</button><button type="submit" class="primary">Guardar clasificación</button></div></form>`;
   $('editForm').onsubmit=guarded(async event=>{event.preventDefault();await api('/api/video',{id:v.id,...Object.fromEntries(new FormData(event.target))});$('detailDialog').close();toast('Clasificación guardada.');await reload();});
   if($('applySuggestion'))$('applySuggestion').onclick=()=>{$('editCategory').value=v.ai_category;};$('detailDialog').showModal();
-  if(v.transcript!==null){const section=document.createElement('section');const title=document.createElement('h3');title.textContent='Transcripción · '+v.transcript_model;const text=document.createElement('div');text.className='description';text.textContent=v.transcript||'No se detectó voz.';section.append(title,text);$('editForm').before(section);}
+  if(v.transcript!==null){const section=document.createElement('section');const title=document.createElement('h3');title.textContent='Transcripción · '+v.transcript_model;const text=document.createElement('div');text.className='description';text.textContent=v.transcript||'No se detectó voz.';section.append(title,text);appendTranscriptReview(section,v);$('editForm').before(section);}
+  if(v.minutes)appendMinutes(v);
 });
 $('detailDialog').addEventListener('close',()=>{const video=$('detailDialog').querySelector('video');if(video){video.pause();video.removeAttribute('src');video.load();}});
+
+let minutesIds=[];
+$('minutesButton').onclick=guarded(async()=>{
+  if(!forAction('minutes').length){toast('Seleccioná videos con una transcripción completa. Podés corregirla antes de generar la minuta.');return;}
+  const tools=await api('/api/tools');if(!tools.ollama||!tools.models.length){$('toolsDialog').showModal();await showTools();return;}
+  $('minutesModel').innerHTML=tools.models.map(m=>`<option ${m==='qwen3:4b'?'selected':''}>${esc(m)}</option>`).join('');
+  $('minutesVisual').innerHTML=tools.models.map(m=>`<option ${m.includes('qwen3-vl:2b')?'selected':''}>${esc(m)}</option>`).join('');
+  minutesIds=selectionList('minutes','minutes');$('minutesDialog').showModal();
+});
+$('minutesForm').onsubmit=guarded(async e=>{
+  e.preventDefault();const b=Object.fromEntries(new FormData(e.target)),button=e.target.querySelector('[type=submit]');button.disabled=true;
+  try{await start('minutes',{sourceId:undefined,videoIds:minutesIds,model:b.model,visualModel:b.visualModel,readScreen:b.readScreen==='on'});$('minutesDialog').close();$('clearSelection').click();}finally{button.disabled=false;}
+});
+function seekButton(second){return `<button type="button" class="minute-seek" data-second="${Number(second)||0}">${duration(Number(second)||0)}</button>`;}
+function enableSeeking(section){section.addEventListener('click',guarded(async e=>{const button=e.target.closest('[data-second]');if(!button)return;const video=$('detailDialog').querySelector('video');if(!video){toast('Conectá la fuente para reproducir este momento.');return;}video.currentTime=Number(button.dataset.second);await video.play();}));}
+function appendTranscriptReview(section,v){
+  const segments=JSON.parse(v.transcript_segments||'[]').filter(s=>s.review);
+  const details=document.createElement('details');details.innerHTML=`<summary>Revisar y corregir transcripción${segments.length?' · '+segments.length+' tramos dudosos':''}</summary><p class="review-notice">La transcripción automática puede contener errores. Estas señales no detectan todos los errores. Corregir el texto invalida la minuta anterior para evitar que use una versión vieja.</p><div>${segments.map(s=>`<p>${seekButton(s.start)}${esc(s.text)}</p>`).join('')}</div><textarea class="transcript-edit" aria-label="Corregir transcripción"></textarea><button type="button" class="save-transcript">Guardar corrección</button>`;
+  details.querySelector('textarea').value=v.transcript||'';
+  details.querySelector('.save-transcript').onclick=guarded(async()=>{await api('/api/transcript',{id:v.id,text:details.querySelector('textarea').value});$('detailDialog').close();toast('Corrección guardada. Ya podés generar nuevamente la minuta.');await reload();});
+  enableSeeking(details);section.append(details);
+}
+function appendMinutes(v){
+  let report;try{report=JSON.parse(v.minutes);}catch{return;}
+  const section=document.createElement('section');section.className='minutes-report';
+  const labels={temas:'Temas tratados',decisiones:'Decisiones explícitas',acciones:'Acciones y compromisos',pendientes:'Preguntas y pendientes',nombres:'Nombres detectados'};
+  const evidence=item=>(item.evidence||[]).map(ev=>`<div class="minute-evidence">${seekButton(ev.second)}${esc(ev.quote)} · ${ev.type==='screen'?'Lectura de pantalla':'Transcripción'}</div>`).join('');
+  section.innerHTML='<h2>Borrador de minuta</h2><p class="review-notice">'+esc(report.notice)+'</p><p class="hint">'+esc(report.model)+' · '+esc(report.transcriptModel||'')+' · '+(report.screenSamples||0)+' muestras de pantalla'+(report.rejected?' · '+report.rejected+' elementos descartados por citas inválidas':'')+'</p>'+Object.entries(labels).map(([key,label])=>'<h3>'+label+'</h3>'+((report[key]||[]).length?(report[key]||[]).map(item=>'<p>'+esc(item.text)+(key==='nombres'?' · '+(item.kind==='visible'?'Nombre leído en pantalla; revisar etiqueta':'Nombre mencionado; asistencia no confirmada'):'')+'</p>'+evidence(item)).join(''):'<p class="muted">No se encontró evidencia suficiente en el material procesado.</p>')).join('');
+  const download=document.createElement('button');download.type='button';download.textContent='Exportar minuta (.md)';download.onclick=()=>{
+    const text=['# Borrador de minuta: '+v.name,report.notice,...Object.entries(labels).flatMap(([key,label])=>['\n## '+label,...(report[key]||[]).map(item=>'- '+item.text+'\n'+(item.evidence||[]).map(ev=>'  - ['+duration(ev.second)+'] '+ev.quote).join('\n'))])].join('\n\n');
+    const url=URL.createObjectURL(new Blob([text],{type:'text/markdown;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='minuta-'+v.id+'.md';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };section.append(download);enableSeeking(section);$('editForm').before(section);
+}
 guarded(reload)();
 let polling=false;setInterval(async()=>{if(polling)return;polling=true;try{const wasActive=state.jobs.some(j=>['running','queued'].includes(j.status));await refresh();if(wasActive||state.jobs.some(j=>['running','queued'].includes(j.status)))await loadVideos();}catch(e){$('resultCount').textContent='Sin conexión con la aplicación. Mantené abierta la ventana de inicio.';}finally{polling=false;}},3000);

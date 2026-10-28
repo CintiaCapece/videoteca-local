@@ -105,7 +105,7 @@ Mantené `datos` en un disco local. SQLite activo no debe ponerse en un recurso 
 - Búsqueda textual con coincidencias parciales, no semántica. Las tildes influyen en las coincidencias.
 - No detecta duplicados recomprimidos, recortes ni similitud visual.
 - No mueve ni propone automáticamente carpetas físicas; organiza mediante categorías y etiquetas.
-- El análisis visual no se resume con el audio: los resultados se consultan por separado.
+- La clasificación visual básica se consulta por separado. Generar minuta usa la transcripción completa y la lectura opcional de nombres en pantalla.
 - No tiene límite automático de caché ni control térmico. Vigilá el espacio libre; podés borrar miniaturas con la aplicación cerrada, pero luego se debe reiniciar su referencia en el catálogo para regenerarlas. Conservá el respaldo.
 - Los modelos visuales, el audio y sus dependencias no se incluyen en el paquete y deben probarse con material real después de instalarlos.
 - No está diseñada para exponerse a internet. Escucha sólo en 127.0.0.1, valida el host y protege las escrituras con un token de sesión.
@@ -124,3 +124,15 @@ El primer piloto recomendado sigue siendo 50–100 videos variados para inventar
 Los trabajos nuevos muestran fases de carga, preparación de audio y transcripción. El porcentaje se calcula con la posición del último segmento procesado sobre la duración total del audio; puede avanzar a saltos y saltar silencios. Durante carga y preparación no hay un porcentaje fiable. El tiempo restante es una estimación que se estabiliza con el avance. El porcentaje corresponde al video actual; el contador sigue indicando archivos procesados.
 
 El modo Rápido usa el mismo modelo small, beam_size=1 y ocho hilos CPU; Equilibrado usa beam_size=3 y cuatro hilos. Rápido puede reducir precisión en audios difíciles y su mejora debe medirse con material real. Elegí Español o Inglés si conocés el idioma, o detección automática si cambia. La GPU sigue siendo opcional y requiere cuBLAS CUDA 12 y cuDNN 9 compatibles. Actualizar no cambia un trabajador que ya está ejecutándose: esperá a que termine antes de reiniciar.
+
+
+## Minutas basadas en el contenido de la reunión
+
+1. Marcá los videos y elegí Transcribir → Preciso (Whisper medium). Se puede volver a transcribir un video; el resultado anterior sólo se reemplaza si finaliza correctamente. Mayor capacidad usa large-v3 en CPU y requiere otra descarga; puede ser mucho más lento.
+2. Abrí el video y revisá la transcripción. Los tramos dudosos se señalan con una heurística, que no detecta todos los errores. Podés corregir el texto; una corrección invalida la minuta previa.
+3. Marcá el video y elegí Generar minuta. Elegí Qwen3 4B para texto y el modelo visual para buscar etiquetas de nombres. La lectura de pantalla toma entre 6 y 24 muestras; puede omitir nombres breves o leerlos mal.
+4. El borrador muestra temas, decisiones explícitas, acciones, pendientes y nombres con citas y botones para abrir el momento del video. Se puede exportar a Markdown. Un nombre mencionado no confirma asistencia. Los nombres visibles y mencionados se distinguen; esta versión no identifica voces ni vincula automáticamente cada frase con una persona.
+
+Ejecutá Configurar-minutas.cmd si faltan Qwen3 4B y Whisper medium. Descarga varios GB y no procesa videos. No hay garantía de transcripción literal exacta ni de una minuta exhaustiva. Las citas se comprueban como coincidencias de texto; esa comprobación no garantiza que el resumen interprete correctamente el contexto. La transcripción y la lectura visual pueden contener errores. El texto del video se trata como datos, no como instrucciones.
+
+El esquema del catálogo se amplía automáticamente al iniciar. Las minutas y el detalle de transcripción se incluyen en la exportación JSON. La aplicación no sube los videos ni el audio a servicios externos.

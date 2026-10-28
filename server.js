@@ -75,12 +75,18 @@ const server=http.createServer(async(req,res)=>{
     }
     if(req.method==='POST'&&p==='/api/jobs'){
       const b=await body(req),payload={sourceId:b.sourceId||undefined,model:String(b.model||'qwen3-vl:2b-instruct-q4_K_M'),limit:Math.min(100,Math.max(1,Number(b.limit)||50)),device:b.device==='cuda'?'cuda':'cpu'};
-      if(b.type==='transcribe'){payload.videoIds=b.videoIds;payload.profile=b.profile==='fast'?'fast':'balanced';payload.language=['es','en'].includes(b.language)?b.language:'auto';}
+      if(b.type==='transcribe'){payload.videoIds=b.videoIds;payload.profile=['fast','precise','maximum'].includes(b.profile)?b.profile:'balanced';payload.language=['es','en'].includes(b.language)?b.language:'auto';payload.overwrite=b.overwrite===true;}
       if(b.type==='ai')payload.videoIds=b.videoIds;
+      if(b.type==='minutes'){payload.videoIds=b.videoIds;payload.readScreen=b.readScreen===true;payload.visualModel=String(b.visualModel||'qwen3-vl:2b-instruct-q4_K_M');}
       return json(res,{id:engine.start(b.type,payload)});
     }
     if(req.method==='POST'&&p==='/api/job-control'){const b=await body(req);if(b.action==='pause')engine.pause(b.id);else if(b.action==='resume')engine.resume(b.id);else throw new Error('Acción inválida.');return json(res,{ok:true});}
     if(req.method==='GET'&&p==='/api/events')return json(res,db.prepare('SELECT * FROM events ORDER BY id DESC LIMIT 100').all());
+    if(req.method==='POST'&&p==='/api/transcript'){
+      if(engine.active)throw new Error('Esperá a que termine el trabajo antes de editar la transcripción.');
+      const b=await body(req);if(typeof b.text!=='string'||b.text.length>500000)throw new Error('Transcripción inválida.');
+      db.prepare("UPDATE videos SET transcript=?,transcript_model='Corregida manualmente',transcript_segments=NULL,minutes=NULL,minutes_model=NULL WHERE id=?").run(b.text,b.id);return json(res,{ok:true});
+    }
     if(req.method==='POST'&&p==='/api/video'){
       const b=await body(req);if(!CATEGORIES.includes(b.category))throw new Error('Categoría inválida.');
       db.prepare('UPDATE videos SET category=?,tags=?,notes=? WHERE id=?').run(b.category,String(b.tags||'').slice(0,2000),String(b.notes||'').slice(0,10000),b.id);return json(res,{ok:true});

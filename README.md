@@ -49,3 +49,15 @@ El ZIP público contiene sólo una lista explícita de archivos de la aplicació
 ## Límites actuales
 
 La búsqueda es textual; no hay búsqueda semántica ni detección de recortes o videos recomprimidos. La organización es mediante el catálogo; no hay reorganización física automática. Las descripciones visuales son parciales y deben revisarse. La reproducción depende de los códecs del navegador. Consultá la guía para más detalles.
+
+
+## Minutas basadas en el contenido de la reunión
+
+1. Marcá los videos y elegí Transcribir → Preciso (Whisper medium). Se puede volver a transcribir un video; el resultado anterior sólo se reemplaza si finaliza correctamente. Mayor capacidad usa large-v3 en CPU y requiere otra descarga; puede ser mucho más lento.
+2. Abrí el video y revisá la transcripción. Los tramos dudosos se señalan con una heurística, que no detecta todos los errores. Podés corregir el texto; una corrección invalida la minuta previa.
+3. Marcá el video y elegí Generar minuta. Elegí Qwen3 4B para texto y el modelo visual para buscar etiquetas de nombres. La lectura de pantalla toma entre 6 y 24 muestras; puede omitir nombres breves o leerlos mal.
+4. El borrador muestra temas, decisiones explícitas, acciones, pendientes y nombres con citas y botones para abrir el momento del video. Se puede exportar a Markdown. Un nombre mencionado no confirma asistencia. Los nombres visibles y mencionados se distinguen; esta versión no identifica voces ni vincula automáticamente cada frase con una persona.
+
+Ejecutá Configurar-minutas.cmd si faltan Qwen3 4B y Whisper medium. Descarga varios GB y no procesa videos. No hay garantía de transcripción literal exacta ni de una minuta exhaustiva. Las citas se comprueban como coincidencias de texto; esa comprobación no garantiza que el resumen interprete correctamente el contexto. La transcripción y la lectura visual pueden contener errores. El texto del video se trata como datos, no como instrucciones.
+
+El esquema del catálogo se amplía automáticamente al iniciar. Las minutas y el detalle de transcripción se incluyen en la exportación JSON. La aplicación no sube los videos ni el audio a servicios externos.

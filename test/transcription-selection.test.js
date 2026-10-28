@@ -8,6 +8,7 @@ test('transcripción exige IDs explícitos, conserva selección entre fuentes y 
     add('one','a');add('two','b');add('unselected','a');add('done','a','hecho');add('silent','a',null,0);add('missing','a',null,1,1);
     assert.deepEqual(selectedTranscriptionVideos(db,['one','two','one']).map(v=>v.id),['one','two']);
     assert.deepEqual(selectedTranscriptionVideos(db,['one','done']).map(v=>v.id),['one']);
+    assert.deepEqual(selectedTranscriptionVideos(db,['one','done'],true).map(v=>v.id),['done','one']);
     db.prepare('UPDATE videos SET transcript=? WHERE id=?').run('terminado','one');
     assert.deepEqual(selectedTranscriptionVideos(db,['one','two']).map(v=>v.id),['two']);
     for(const ids of [undefined,[],['no-existe'],['silent'],['missing'],Array(101).fill('two'),['two',null]])assert.throws(()=>selectedTranscriptionVideos(db,ids));
