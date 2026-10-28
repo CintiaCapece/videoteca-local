@@ -116,7 +116,12 @@ try {
     }
     if (-not (Start-VideotecaOllama $appRoot)) { throw 'No se pudo iniciar Ollama.' }
     Write-Host '[4/5] Modelo visual local (descarga inicial)'
-    Invoke-Checked $ollama @('pull',$modelName)
+    $installedModels = Invoke-RestMethod -Uri 'http://127.0.0.1:11434/api/tags' -TimeoutSec 10
+    if ($modelName -in @($installedModels.models.name)) {
+        Write-Host 'El modelo ya esta instalado. Se conserva la version local y se comprobara en la prueba visual.'
+    } else {
+        Invoke-Checked $ollama @('pull',$modelName)
+    }
 
     Write-Host '[5/5] Pruebas con material sintetico'
     $wav = Join-Path $testDir 'frase.wav'
