@@ -1,6 +1,6 @@
 # Arquitectura de software — Videoteca Local
 
-**Versión:** 1.0 · **Fecha:** 30 de octubre de 2026  
+**Versión:** 1.1 · **Fecha:** 30 de octubre de 2026  
 **Estado:** diseño propuesto para guiar la estabilización. No constituye una certificación del código actual ni una lista de funciones ya implementadas.  
 **Prioridad:** aplicación local de Windows. La demo pública es una distribución independiente y secundaria.
 
@@ -14,7 +14,7 @@ La primera versión estable será de un usuario y una computadora. No incluirá 
 
 **Solidez significa:** proteger los datos, recuperar trabajos, acotar los fallos de herramientas, explicar el estado real y poder verificar cada versión. No significa garantizar que un modelo reconozca o interprete todo correctamente.
 
-## 2. Punto de partida comprobado
+## 2. Punto de partida comprobado (diagnóstico inicial)
 
 La versión publicada que sirve de referencia es el commit `bcf87164c4500765c60b0f8d28e3a469d4a0fb27` del repositorio `CintiaCapece/videoteca-local`.
 
@@ -38,7 +38,7 @@ Riesgos concretos observados al leer el código publicado:
 - No existe un mecanismo de respaldo consistente integrado en el flujo de migración del esquema.
 - Varias operaciones verifican el archivo antes de procesarlo, pero falta una regla común para rechazar resultados si el archivo cambió durante el procesamiento.
 
-Los cambios preliminares de estabilización están aislados en una copia de trabajo. No forman parte de la referencia publicada y deben adaptarse a este diseño y validarse antes de incorporarse.
+El diagnóstico inicial se mantuvo separado del código publicado. La evolución y la evidencia de cada incremento se registran en el [registro ADR](docs/adr/README.md). La versión 1.1.0 incorpora el incremento A; los demás incrementos siguen siendo diseño objetivo. [ADR-0001](docs/adr/0001-base-tecnologica.md) confirma Node.js, procesos Python y frontend JavaScript modular. [ADR-0002](docs/adr/0002-proteccion-catalogo.md) documenta la protección del catálogo.
 
 ## 3. Decisión principal: monolito modular local
 
@@ -362,3 +362,4 @@ Cada incremento será pequeño, revisable y acompañado por pruebas que reproduz
 | Sin nube en la ruta local por defecto | Mantiene privacidad y operación sin costos de alojamiento | Descargas iniciales requieren conexión; cualquier integración externa futura se diseña de forma explícita. |
 
 La solidez se evaluará por recuperación demostrada, preservación de datos y calidad medida. La cantidad de agentes, archivos de instrucciones o herramientas no reemplaza esos resultados.
+

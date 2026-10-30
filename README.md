@@ -5,6 +5,12 @@ Un catálogo privado para encontrar y organizar videos guardados en tu computado
 **[Presentación y demo](https://cintiacapece.github.io/videoteca-local/)** · **[Descargar aplicación](https://cintiacapece.github.io/videoteca-local/downloads/VideotecaLocal.zip)** · **[Guía completa](LEEME.md)**
 
 
+
+## Estabilización local y decisiones
+
+La versión **1.1.0** incorpora protección de instancia, migraciones transaccionales y respaldos verificados. Consultá [ESTABILIDAD.md](ESTABILIDAD.md) para actualizar, comprobar y restaurar el catálogo sin reemplazar el original, y el [registro ADR](docs/adr/README.md) para decisiones, alternativas, evidencia y pendientes. Cerrá todas las instancias anteriores antes de actualizar. La reanudación por video y la cancelación uniforme son incrementos posteriores; esta entrega no los declara resueltos.
+
+
 ## Arquitectura y estabilización
 
 Consultá [ARQUITECTURA.md](ARQUITECTURA.md) para el diseño propuesto, los módulos, la recuperación de trabajos, los respaldos y los criterios verificables de una versión estable. La aplicación local es la prioridad; el documento distingue el estado actual de las mejoras por implementar.
@@ -84,3 +90,4 @@ Los modelos se descargan desde Hugging Face y el motor/WASM desde jsDelivr al so
 YouTube no se descarga automáticamente: se puede copiar una transcripción disponible o seleccionar un archivo que el visitante pueda procesar. No se requieren cuenta, claves, instalaciones, servicios pagos ni Hugging Face Spaces. GitHub Pages sirve los archivos estáticos.
 
 Pruebas de límites, fragmentación, referencias, nombres y reglas: `node --test test/browser-demo.test.mjs`. Se probó en navegador una transcripción de voz sintética (con errores de reconocimiento), la minuta rápida con datos ficticios, la validación de entrada vacía, la cancelación y la descarga Markdown. Esto no garantiza calidad con grabaciones reales. Referencias: [Transformers.js](https://huggingface.co/docs/transformers.js/v3.8.1/index), [Whisper base ONNX](https://huggingface.co/Xenova/whisper-base), [Qwen2.5 ONNX](https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct).
+

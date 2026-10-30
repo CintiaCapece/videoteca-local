@@ -1,6 +1,6 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const os=require('node:os');const path=require('node:path');
 const {openDatabase,selectedTranscriptionVideos,selectedVisualVideos,createEngine}=require('../lib');
-test('transcripción exige IDs explícitos, conserva selección entre fuentes y al reanudar omite completados',()=>{
+test('selección valida IDs entre fuentes y omite transcripciones previas solo sin reemplazo',()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'video-select-'));const db=openDatabase(dir);
   try{
     for(const id of ['a','b'])db.prepare('INSERT INTO sources(id,name,root,created) VALUES(?,?,?,?)').run(id,id,dir+id,'now');

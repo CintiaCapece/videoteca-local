@@ -4,12 +4,12 @@ const fs=require('node:fs');
 const path=require('node:path');
 const crypto=require('node:crypto');
 const {spawn}=require('node:child_process');
-const {openDatabase,createEngine,within,fingerprint,CATEGORIES}=require('./lib');
+const {openDatabase,createEngine,within,fingerprint,CATEGORIES,backupCatalog}=require('./lib');
 const {chooseFolder}=require('./folder-picker');
 let pickingFolder=false;
 const PORT=Number(process.env.VIDEOTECA_PORT||43127);
 const DATA=path.resolve(process.env.VIDEOTECA_DATA||path.join(__dirname,'datos'));
-const db=openDatabase(DATA),engine=createEngine(db,DATA);
+let db,engine;
 const token=crypto.randomBytes(32).toString('hex');
 const origin=`http://127.0.0.1:${PORT}`;
 const json=(res,value,status=200)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(value));};
@@ -38,8 +38,9 @@ const server=http.createServer(async(req,res)=>{
     if(req.method!=='GET'&&(req.headers['x-videoteca-token']!==token||req.headers.origin&&req.headers.origin!==origin))return json(res,{error:'Solicitud rechazada. Recargá la aplicación.'},403);
     if(req.method==='GET'&&p==='/api/state'){
       const sources=await Promise.all(db.prepare('SELECT s.*,(SELECT COUNT(*) FROM videos v WHERE v.source_id=s.id) AS count FROM sources s ORDER BY created').all().map(async s=>({...s,online:await exists(s.root)})));
-      return json(res,{sources,categories:CATEGORIES,jobs:db.prepare('SELECT * FROM jobs ORDER BY created DESC LIMIT 12').all().map(job=>({...job,detail:JSON.parse(db.prepare('SELECT info FROM job_progress WHERE job_id=?').get(job.id)?.info||'null')})),stats:db.prepare(`SELECT COUNT(*) AS count,COALESCE(SUM(size),0) AS bytes,SUM(category='Pendiente') AS pending,SUM(thumbnail IS NOT NULL) AS thumbnails,SUM(summary!='') AS analyzed,SUM(missing=1) AS missing FROM videos`).get(),duplicates:db.prepare('SELECT COUNT(*) AS groups,COALESCE(SUM(n-1),0) AS extra,COALESCE(SUM((n-1)*size),0) AS bytes FROM (SELECT size,COUNT(*) n FROM videos WHERE hash IS NOT NULL AND missing=0 GROUP BY hash HAVING COUNT(*)>1)').get()});
+      return json(res,{version:require('./package.json').version,sources,categories:CATEGORIES,jobs:db.prepare('SELECT * FROM jobs ORDER BY created DESC LIMIT 12').all().map(job=>({...job,detail:JSON.parse(db.prepare('SELECT info FROM job_progress WHERE job_id=?').get(job.id)?.info||'null')})),stats:db.prepare(`SELECT COUNT(*) AS count,COALESCE(SUM(size),0) AS bytes,SUM(category='Pendiente') AS pending,SUM(thumbnail IS NOT NULL) AS thumbnails,SUM(summary!='') AS analyzed,SUM(missing=1) AS missing FROM videos`).get(),duplicates:db.prepare('SELECT COUNT(*) AS groups,COALESCE(SUM(n-1),0) AS extra,COALESCE(SUM((n-1)*size),0) AS bytes FROM (SELECT size,COUNT(*) n FROM videos WHERE hash IS NOT NULL AND missing=0 GROUP BY hash HAVING COUNT(*)>1)').get()});
     }
+    if(req.method==='POST'&&p==='/api/backup'){await body(req);return json(res,backupCatalog(db,DATA));}
     if(req.method==='GET'&&p==='/api/tools')return json(res,await engine.toolsStatus());
     if(req.method==='GET'&&p==='/api/videos'){
       const clauses=[],args=[];const q=(url.searchParams.get('q')||'').slice(0,500);
@@ -110,6 +111,7 @@ const server=http.createServer(async(req,res)=>{
   }catch(e){json(res,{error:e.code==='SQLITE_CONSTRAINT_UNIQUE'?'Esa carpeta ya está registrada.':e.message},400);}
 });
 server.listen(PORT,'127.0.0.1',()=>{
+  try{db=openDatabase(DATA);engine=createEngine(db,DATA);}catch(error){try{db?.close();}finally{console.error('No se pudo abrir el catálogo: '+error.message);process.exitCode=1;server.close();}return;}
   console.log(`\nVideoteca Local · ${origin}\nDatos: ${DATA}\nConservá esta ventana abierta. Ctrl+C para detener.\n`);
   if(process.argv.includes('--open')){const child=spawn('powershell.exe',['-NoProfile','-Command',`Start-Process '${origin}'`],{windowsHide:true,stdio:'ignore'});child.on('error',()=>{});}
 });

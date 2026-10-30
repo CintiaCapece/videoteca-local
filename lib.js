@@ -7,26 +7,9 @@ const { spawn } = require('node:child_process');
 const {progressReader}=require('./stream-progress');
 const {describeFrame}=require('./vision-response');
 const {buildMinutes,transcriptRecords,jsonRequest}=require('./meeting-minutes');
-const { DatabaseSync } = require('node:sqlite');
+const {openDatabase,backupCatalog}=require('./catalog-storage');
 const EXTENSIONS = new Set(['.mp4','.mov','.mkv','.avi','.webm','.m4v','.mts','.m2ts','.mpg','.mpeg','.wmv','.3gp','.ts','.vob','.flv','.ogv']);
 const CATEGORIES = ['Pendiente','Personal y viajes','Clases y cursos','Trabajo y reuniones','Grabaciones de pantalla','Entretenimiento','Otros'];
-
-function openDatabase(dir) {
-  fs.mkdirSync(dir, {recursive:true});
-  const db = new DatabaseSync(path.join(dir,'catalogo.sqlite'));
-  db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;
-    CREATE TABLE IF NOT EXISTS sources(id TEXT PRIMARY KEY,name TEXT NOT NULL,root TEXT NOT NULL UNIQUE,created TEXT NOT NULL,last_scan TEXT);
-    CREATE TABLE IF NOT EXISTS videos(id TEXT PRIMARY KEY,source_id TEXT NOT NULL REFERENCES sources(id),rel TEXT NOT NULL,name TEXT NOT NULL,size INTEGER NOT NULL,mtime REAL NOT NULL,extension TEXT NOT NULL,duration REAL,width INTEGER,height INTEGER,has_audio INTEGER,hash TEXT,thumbnail TEXT,category TEXT NOT NULL DEFAULT 'Pendiente',tags TEXT NOT NULL DEFAULT '',notes TEXT NOT NULL DEFAULT '',summary TEXT NOT NULL DEFAULT '',ai_category TEXT,ai_evidence TEXT,ai_model TEXT,ai_date TEXT,probe_error TEXT,transcript TEXT,transcript_model TEXT,missing INTEGER NOT NULL DEFAULT 0, UNIQUE(source_id,rel));
-    CREATE INDEX IF NOT EXISTS videos_size ON videos(size);
-    CREATE INDEX IF NOT EXISTS videos_hash ON videos(hash);
-    CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY,type TEXT NOT NULL,status TEXT NOT NULL,payload TEXT NOT NULL,progress INTEGER NOT NULL DEFAULT 0,total INTEGER NOT NULL DEFAULT 0,message TEXT NOT NULL DEFAULT '',errors INTEGER NOT NULL DEFAULT 0,created TEXT NOT NULL,updated TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY,job_id TEXT,created TEXT NOT NULL,message TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS job_progress(job_id TEXT PRIMARY KEY,info TEXT NOT NULL);
-    UPDATE jobs SET status='interrupted',message='Interrumpido al cerrar. Podés reanudarlo.' WHERE status IN ('running','queued');`);
-  const columns=new Set(db.prepare('PRAGMA table_info(videos)').all().map(c=>c.name));
-  for(const name of ['transcript_segments','minutes','minutes_model'])if(!columns.has(name))db.exec('ALTER TABLE videos ADD COLUMN '+name+' TEXT');
-  return db;
-}
 
 function within(root, relative) {
   const full = path.resolve(root, relative);
@@ -225,4 +208,4 @@ function createEngine(db, dataDir, options={}) {
   function resume(id){if(active)throw new Error('Ya hay un trabajo en curso.');const job=db.prepare('SELECT * FROM jobs WHERE id=?').get(id);if(!job||!(['paused','interrupted','failed','done_with_errors'].includes(job.status)||(job.status==='done'&&job.errors>0)))throw new Error('No se puede reanudar ese trabajo.');void execute(job);}
   return {toolsStatus,videoPath,start,pause,resume,get active(){return active;}};
 }
-module.exports={openDatabase,createEngine,within,fingerprint,run,CATEGORIES,EXTENSIONS,selectedTranscriptionVideos,selectedVisualVideos};
+module.exports={openDatabase,backupCatalog,createEngine,within,fingerprint,run,CATEGORIES,EXTENSIONS,selectedTranscriptionVideos,selectedVisualVideos};
