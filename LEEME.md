@@ -1,10 +1,10 @@
 # Videoteca Local
 
-## Actualización 1.1.0 y registro de decisiones
+## Actualización 1.2.0 y registro de decisiones
 
 Antes de actualizar, cerrá todas las instancias anteriores. Esta versión protege el catálogo entre instancias compatibles, comprueba su integridad y crea un respaldo verificado antes de migrar. El respaldo manual está en Herramientas y ayuda. La recuperación se realiza en otra carpeta, sin reemplazar el catálogo original: consultá [ESTABILIDAD.md](ESTABILIDAD.md) y el [registro ADR](docs/adr/README.md).
 
-La reanudación por video y la cancelación uniforme siguen pendientes. Los resultados ya guardados se conservan, pero reanudar una retranscripción con reemplazo o una minuta puede volver a procesar videos completados. Hasta implementar el plan durable, seleccioná explícitamente los pendientes para un trabajo nuevo y conservá un respaldo antes de reemplazar resultados.
+Los lotes nuevos guardan la selección y la confirmación por video: reanudar omite los terminados, incluso al reemplazar transcripciones o minutas. Los lotes anteriores a 1.2.0 requieren crear otro lote seleccionando pendientes. El inventario puede reiniciarse. Pausar sigue siendo cooperativo: espera a que termine la operación actual. Consultá [ADR-0003](docs/adr/0003-recuperacion-por-video.md).
 
 Aplicación local para Windows 11. Diseñada para empezar en una Dell Precision 5560 con 32 GB de RAM y RTX A2000 de 4 GB y ampliar el catálogo a discos externos o NAS.
 

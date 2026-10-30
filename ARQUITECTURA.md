@@ -38,7 +38,7 @@ Riesgos concretos observados al leer el código publicado:
 - No existe un mecanismo de respaldo consistente integrado en el flujo de migración del esquema.
 - Varias operaciones verifican el archivo antes de procesarlo, pero falta una regla común para rechazar resultados si el archivo cambió durante el procesamiento.
 
-El diagnóstico inicial se mantuvo separado del código publicado. La evolución y la evidencia de cada incremento se registran en el [registro ADR](docs/adr/README.md). La versión 1.1.0 incorpora el incremento A; los demás incrementos siguen siendo diseño objetivo. [ADR-0001](docs/adr/0001-base-tecnologica.md) confirma Node.js, procesos Python y frontend JavaScript modular. [ADR-0002](docs/adr/0002-proteccion-catalogo.md) documenta la protección del catálogo.
+El diagnóstico inicial se mantuvo separado del código publicado. La evolución y la evidencia de cada incremento se registran en el [registro ADR](docs/adr/README.md). La versión 1.1.0 incorpora el incremento A y 1.2.0 incorpora el lote durable del incremento B, documentado en [ADR-0003](docs/adr/0003-recuperacion-por-video.md). La cancelación uniforme y los demás incrementos siguen siendo diseño objetivo. [ADR-0001](docs/adr/0001-base-tecnologica.md) confirma Node.js, procesos Python y frontend JavaScript modular. [ADR-0002](docs/adr/0002-proteccion-catalogo.md) documenta la protección del catálogo.
 
 ## 3. Decisión principal: monolito modular local
 

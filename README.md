@@ -8,7 +8,7 @@ Un catálogo privado para encontrar y organizar videos guardados en tu computado
 
 ## Estabilización local y decisiones
 
-La versión **1.1.0** incorpora protección de instancia, migraciones transaccionales y respaldos verificados. Consultá [ESTABILIDAD.md](ESTABILIDAD.md) para actualizar, comprobar y restaurar el catálogo sin reemplazar el original, y el [registro ADR](docs/adr/README.md) para decisiones, alternativas, evidencia y pendientes. Cerrá todas las instancias anteriores antes de actualizar. La reanudación por video y la cancelación uniforme son incrementos posteriores; esta entrega no los declara resueltos.
+La versión **1.2.0** suma lotes persistentes y confirmación por video: reanudar conserva la selección y omite resultados terminados. Mantiene la protección del catálogo y los respaldos verificados de 1.1.0. Consultá [ESTABILIDAD.md](ESTABILIDAD.md) y [ADR-0003](docs/adr/0003-recuperacion-por-video.md). Cerrá todas las instancias antes de actualizar. Los lotes antiguos requieren una nueva selección; la cancelación uniforme sigue pendiente.
 
 
 ## Arquitectura y estabilización

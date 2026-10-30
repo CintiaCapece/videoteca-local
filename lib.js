@@ -8,6 +8,7 @@ const {progressReader}=require('./stream-progress');
 const {describeFrame}=require('./vision-response');
 const {buildMinutes,transcriptRecords,jsonRequest}=require('./meeting-minutes');
 const {openDatabase,backupCatalog}=require('./catalog-storage');
+const ledger=require('./job-ledger');
 const EXTENSIONS = new Set(['.mp4','.mov','.mkv','.avi','.webm','.m4v','.mts','.m2ts','.mpg','.mpeg','.wmv','.3gp','.ts','.vob','.flv','.ogv']);
 const CATEGORIES = ['Pendiente','Personal y viajes','Clases y cursos','Trabajo y reuniones','Grabaciones de pantalla','Entretenimiento','Otros'];
 
@@ -56,6 +57,7 @@ function selectedTranscriptionVideos(db, ids, overwrite=false) {
 }
 
 function createEngine(db, dataDir, options={}) {
+  const run=options.run||module.exports.run;
   const ffmpeg=options.ffmpeg||process.env.VIDEOTECA_FFMPEG||'ffmpeg';
   const ffprobe=options.ffprobe||process.env.VIDEOTECA_FFPROBE||'ffprobe';
   const ollama='http://127.0.0.1:11434';
@@ -65,6 +67,7 @@ function createEngine(db, dataDir, options={}) {
   const log=(id,message)=>db.prepare('INSERT INTO events(job_id,created,message) VALUES(?,?,?)').run(id,now(),String(message).slice(0,2000));
   const update=(id,fields)=>{const keys=Object.keys(fields);db.prepare(`UPDATE jobs SET ${keys.map(k=>k+'=?').join(',')},updated=? WHERE id=?`).run(...keys.map(k=>fields[k]),now(),id);};
   async function toolsStatus(){
+    if(options.toolsStatus)return options.toolsStatus();
     const checks=await Promise.allSettled([run(ffmpeg,['-version'],8000),run(ffprobe,['-version'],8000),fetch(ollama+'/api/tags',{signal:AbortSignal.timeout(2500)}).then(r=>{if(!r.ok)throw new Error('Ollama no responde.');return r.json();}),run(process.env.VIDEOTECA_PYTHON||'python',['-c','import faster_whisper; print("ok")'],15000)]);
     return {ffmpeg:checks[0].status==='fulfilled',ffprobe:checks[1].status==='fulfilled',ollama:checks[2].status==='fulfilled',whisper:checks[3].status==='fulfilled',models:checks[2].status==='fulfilled'?(checks[2].value.models||[]).map(x=>x.name):[]};
   }
@@ -130,7 +133,7 @@ function createEngine(db, dataDir, options={}) {
     const counts={};for(const f of frames)counts[f.category]=(counts[f.category]||0)+1;
     const category=Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0]||'Pendiente';
     const summary=frames.map(f=>`[${Math.floor(f.second/60)}:${String(f.second%60).padStart(2,'0')}] ${f.description}`).join('\n');
-    db.prepare('UPDATE videos SET summary=?,ai_category=?,ai_evidence=?,ai_model=?,ai_date=? WHERE id=?').run(summary,category,JSON.stringify(frames),payload.model,now(),video.id);
+    return ()=>db.prepare('UPDATE videos SET summary=?,ai_category=?,ai_evidence=?,ai_model=?,ai_date=? WHERE id=?').run(summary,category,JSON.stringify(frames),payload.model,now(),video.id);
   }
   async function minuteVideo(video,payload,capabilities,job,stopped){
     if(!video.transcript?.trim())throw new Error('Primero transcribí este video.');
@@ -155,38 +158,49 @@ function createEngine(db, dataDir, options={}) {
     const report=await buildMinutes({records,model:payload.model,onProgress:(i,n)=>{if(stopped())throw new Error('PAUSED');update(job.id,{message:video.name+' · Minuta: fragmento '+Math.min(i+1,n)+'/'+n});}});
     for(const r of records.filter(r=>r.type==='screen'))if(!report.nombres.some(n=>n.text.toLowerCase()===r.name.toLowerCase()))report.nombres.push({text:r.name,kind:'visible',evidence:[{id:r.id,second:r.second,quote:r.text,type:'screen'}]});
     report.screenSamples=sampled;report.transcriptModel=video.transcript_model;report.reviewSegments=video.transcript_segments?JSON.parse(video.transcript_segments).filter(s=>s.review).length:null;
-    db.prepare('UPDATE videos SET minutes=?,minutes_model=? WHERE id=?').run(JSON.stringify(report),payload.model,video.id);
+    return ()=>db.prepare('UPDATE videos SET minutes=?,minutes_model=? WHERE id=?').run(JSON.stringify(report),payload.model,video.id);
   }
   async function batch(job,payload,stopped){
     const capabilities=job.type==='duplicates'?null:await toolsStatus();
     if(job.type==='metadata'&&!capabilities.ffprobe&&!capabilities.ffmpeg)throw new Error('No se encontró FFmpeg ni ffprobe. Consultá LEEME.md para instalarlos.');
-    let rows=job.type==='transcribe'?selectedTranscriptionVideos(db,payload.videoIds,payload.overwrite):job.type==='minutes'?selectedVideosByIds(db,payload.videoIds):job.type==='ai'?selectedVisualVideos(db,payload.videoIds):db.prepare('SELECT * FROM videos WHERE missing=0'+(payload.sourceId?' AND source_id=?':'')+' ORDER BY name').all(...(payload.sourceId?[payload.sourceId]:[]));
-    if(job.type==='duplicates'){
-      const sizes=new Set(db.prepare('SELECT size FROM videos WHERE missing=0 GROUP BY size HAVING COUNT(*)>1').all().map(r=>r.size));rows=rows.filter(v=>sizes.has(v.size)&&!v.hash);
-    }else if(job.type==='metadata'){rows=rows.filter(v=>(capabilities.ffprobe&&v.duration===null)||(capabilities.ffmpeg&&!v.thumbnail));}
-    else if(job.type==='transcribe'){} // La selección explícita ya define el lote completo.
-    else if(job.type==='ai'){} // Sólo los IDs confirmados, sin límite implícito adicional.
-    update(job.id,{total:rows.length,progress:0,errors:0});let done=0,errors=0;
-    for(const video of rows){
+    const items=db.prepare("SELECT * FROM job_items WHERE job_id=? AND status!='succeeded' ORDER BY position").all(job.id);
+    ledger.counts(db,job.id);
+    for(const item of items){
       if(stopped())throw new Error('PAUSED');
-        update(job.id,{message:video.name});
-        if(job.type==='transcribe')db.prepare('DELETE FROM job_progress WHERE job_id=?').run(job.id);
+      const video=db.prepare('SELECT * FROM videos WHERE id=?').get(item.video_id);
+      update(job.id,{message:video?.name||item.video_id});
+      db.prepare("UPDATE job_items SET status='running',attempts=attempts+1,message='' WHERE job_id=? AND video_id=?").run(job.id,item.video_id);
+      if(job.type==='transcribe')db.prepare('DELETE FROM job_progress WHERE job_id=?').run(job.id);
       try{
-        if(job.type==='duplicates'){const file=await verified(video),hash=await fingerprint(file,stopped);db.prepare('UPDATE videos SET hash=? WHERE id=?').run(hash,video.id);}
-        else if(job.type==='metadata')await enrich(video,capabilities);
-          else if(job.type==='minutes')await minuteVideo(video,payload,capabilities,job,stopped);
+        if(!video||video.missing||ledger.revision(video,job.type)!==item.revision)throw new Error('El video o la transcripción cambió desde la selección. Creá un lote nuevo.');
+        if(db.prepare('SELECT root FROM sources WHERE id=?').get(video.source_id)?.root!==item.source_root)throw new Error('La ubicación de la fuente cambió. Creá un lote nuevo.');
+        await verified(video);
+        let persist=()=>{};
+        if(job.type==='duplicates'){const file=await verified(video),hash=await fingerprint(file,stopped);persist=()=>db.prepare('UPDATE videos SET hash=? WHERE id=?').run(hash,video.id);}
+        else if(job.type==='metadata'){await enrich(video,capabilities);if((!capabilities.ffprobe&&video.duration===null)||(!capabilities.ffmpeg&&!video.thumbnail))throw new Error('Faltan herramientas para completar los datos y la miniatura.');}
+          else if(job.type==='minutes')persist=await minuteVideo(video,payload,capabilities,job,stopped);
         else if(job.type==='transcribe'){
           if(!capabilities.whisper)throw new Error('Instalá Python y faster-whisper. Consultá LEEME.md.');
           const file=await verified(video);
           const text=await run(process.env.VIDEOTECA_PYTHON||'python',['-u',path.join(__dirname,'transcribir.py'),file,path.join(dataDir,'modelos'),payload.device==='cuda'?'cuda':'cpu',['fast','precise','maximum'].includes(payload.profile)?payload.profile:'balanced',['es','en'].includes(payload.language)?payload.language:'auto'],6*60*60*1000,info=>{
             db.prepare('INSERT INTO job_progress(job_id,info) VALUES(?,?) ON CONFLICT(job_id) DO UPDATE SET info=excluded.info').run(job.id,JSON.stringify(info));
           });
-          const result=JSON.parse(text);db.prepare('UPDATE videos SET transcript=?,transcript_model=?,transcript_segments=?,minutes=NULL,minutes_model=NULL WHERE id=?').run(result.text,result.model,JSON.stringify(result.segments||[]),video.id);
-        }else await describe(video,payload,capabilities,stopped);
-      }catch(e){if(e.message==='PAUSED')throw e;errors++;log(job.id,`${video.name}: ${e.message}`);if(job.type==='metadata')db.prepare('UPDATE videos SET probe_error=? WHERE id=?').run(e.message.slice(0,1000),video.id);}
-      update(job.id,{progress:++done,errors});
+          const result=JSON.parse(text);if(typeof result.text!=='string'||typeof result.model!=='string'||!Array.isArray(result.segments||[]))throw new Error('Respuesta de transcripción inválida. Se conserva el resultado anterior.');persist=()=>db.prepare('UPDATE videos SET transcript=?,transcript_model=?,transcript_segments=?,minutes=NULL,minutes_model=NULL WHERE id=?').run(result.text,result.model,JSON.stringify(result.segments||[]),video.id);
+        }else persist=await describe(video,payload,capabilities,stopped);
+        await verified(video);
+        const current=db.prepare('SELECT * FROM videos WHERE id=?').get(video.id);
+        if(!current||ledger.revision(current,job.type)!==item.revision)throw new Error('El video o la transcripción cambió durante el procesamiento. Creá un lote nuevo.');
+        ledger.confirm(db,job.id,video.id,persist);
+      }catch(e){
+        db.prepare("UPDATE job_items SET status=?,message=? WHERE job_id=? AND video_id=?").run(e.message==='PAUSED'?'pending':'failed',String(e.message).slice(0,2000),job.id,item.video_id);
+        ledger.counts(db,job.id);
+        if(e.message==='PAUSED')throw e;
+        log(job.id,(video?.name||item.video_id)+': '+e.message);
+        if(job.type==='metadata'&&video)db.prepare('UPDATE videos SET probe_error=? WHERE id=?').run(e.message.slice(0,1000),video.id);
+      }
     }
-    update(job.id,{message:`Revisados: ${done}. Completados: ${done-errors}. Errores: ${errors}.`});
+    const result=ledger.counts(db,job.id);
+    update(job.id,{message:'Revisados: '+result.progress+'. Completados: '+(result.progress-result.errors)+'. Errores: '+result.errors+'.'});
   }
   async function execute(job){
     active={id:job.id,stop:false};update(job.id,{status:'running'});
@@ -201,11 +215,18 @@ function createEngine(db, dataDir, options={}) {
     if(type==='transcribe'&&!selectedTranscriptionVideos(db,payload.videoIds,payload.overwrite).length)throw new Error('Los videos seleccionados ya tienen transcripción.');
     if(type==='minutes'&&selectedVideosByIds(db,payload.videoIds).some(v=>!v.transcript?.trim()))throw new Error('Primero transcribí todos los videos seleccionados para la minuta.');
     if(type==='ai'&&!selectedVisualVideos(db,payload.videoIds).length)throw new Error('Los videos seleccionados ya tienen análisis visual.');
-    const id=crypto.randomUUID(),stamp=now();db.prepare('INSERT INTO jobs(id,type,status,payload,created,updated) VALUES(?,?,?,?,?,?)').run(id,type,'queued',JSON.stringify(payload),stamp,stamp);
+    const id=crypto.randomUUID(),stamp=now();
+    if(type==='scan')db.prepare('INSERT INTO jobs(id,type,status,payload,created,updated) VALUES(?,?,?,?,?,?)').run(id,type,'queued',JSON.stringify(payload),stamp,stamp);
+    else{
+      let rows=type==='transcribe'?selectedTranscriptionVideos(db,payload.videoIds,payload.overwrite):type==='minutes'?selectedVideosByIds(db,payload.videoIds):type==='ai'?selectedVisualVideos(db,payload.videoIds):db.prepare('SELECT * FROM videos WHERE missing=0'+(payload.sourceId?' AND source_id=?':'')+' ORDER BY name').all(...(payload.sourceId?[payload.sourceId]:[]));
+      if(type==='duplicates'){const sizes=new Set(db.prepare('SELECT size FROM videos WHERE missing=0 GROUP BY size HAVING COUNT(*)>1').all().map(r=>r.size));rows=rows.filter(v=>sizes.has(v.size)&&!v.hash);}
+      if(type==='metadata')rows=rows.filter(v=>v.duration===null||!v.thumbnail);
+      ledger.plan(db,{id,type,payload:JSON.stringify(payload),stamp},rows);
+    }
     void execute(db.prepare('SELECT * FROM jobs WHERE id=?').get(id));return id;
   }
   function pause(id){if(active?.id===id){active.stop=true;return;}throw new Error('Ese trabajo no está en curso.');}
-  function resume(id){if(active)throw new Error('Ya hay un trabajo en curso.');const job=db.prepare('SELECT * FROM jobs WHERE id=?').get(id);if(!job||!(['paused','interrupted','failed','done_with_errors'].includes(job.status)||(job.status==='done'&&job.errors>0)))throw new Error('No se puede reanudar ese trabajo.');void execute(job);}
+  function resume(id){if(active)throw new Error('Ya hay un trabajo en curso.');const job=db.prepare('SELECT * FROM jobs WHERE id=?').get(id);if(!job||!(['paused','interrupted','failed','done_with_errors'].includes(job.status)||(job.status==='done'&&job.errors>0)))throw new Error('No se puede reanudar ese trabajo.');if(job.type!=='scan'&&!job.planned)throw new Error('Este lote es anterior a la recuperación por video. Creá un lote nuevo seleccionando los pendientes.');void execute(job);}
   return {toolsStatus,videoPath,start,pause,resume,get active(){return active;}};
 }
 module.exports={openDatabase,backupCatalog,createEngine,within,fingerprint,run,CATEGORIES,EXTENSIONS,selectedTranscriptionVideos,selectedVisualVideos};

@@ -3,7 +3,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const crypto=require('node:crypto');
 const {DatabaseSync}=require('node:sqlite');
-const SCHEMA_VERSION=1;
+const SCHEMA_VERSION=2;
 
 function processExists(pid){
   if(!Number.isInteger(pid)||pid<=0)return true;
@@ -99,6 +99,12 @@ function openDatabase(dir){
       const columns=new Set(db.prepare('PRAGMA table_info(videos)').all().map(c=>c.name));
       for(const name of ['transcript_segments','minutes','minutes_model'])if(!columns.has(name))db.exec('ALTER TABLE videos ADD COLUMN '+name+' TEXT');
       }
+      if(version<2){
+        const columns=new Set(db.prepare('PRAGMA table_info(jobs)').all().map(c=>c.name));
+        if(!columns.has('planned'))db.exec('ALTER TABLE jobs ADD COLUMN planned INTEGER NOT NULL DEFAULT 0');
+        db.exec("CREATE TABLE job_items(job_id TEXT NOT NULL REFERENCES jobs(id),video_id TEXT NOT NULL REFERENCES videos(id),position INTEGER NOT NULL,revision TEXT NOT NULL,source_root TEXT NOT NULL,status TEXT NOT NULL CHECK(status IN ('pending','running','succeeded','failed')),attempts INTEGER NOT NULL DEFAULT 0,message TEXT NOT NULL DEFAULT '',PRIMARY KEY(job_id,video_id)); CREATE INDEX job_items_pending ON job_items(job_id,status,position);");
+      }
+      db.exec("UPDATE job_items SET status='pending' WHERE status='running'");
       db.exec(`UPDATE jobs SET status='interrupted',message='Interrumpido al cerrar. Podés reanudarlo.' WHERE status IN ('running','queued','pausing'); PRAGMA user_version=${SCHEMA_VERSION}; COMMIT;`);
     }catch(error){db.exec('ROLLBACK');throw error;}
     const close=db.close.bind(db);let closed=false;

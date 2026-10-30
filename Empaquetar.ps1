@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 $appRoot = $PSScriptRoot
 $destination = Join-Path $appRoot 'docs\downloads'
 New-Item -ItemType Directory -Force -Path $destination | Out-Null
-$allowedFiles = @('Iniciar.cmd','Iniciar.ps1','Configurar-herramientas.cmd','Configurar-herramientas.ps1','Ollama-local.ps1','requirements-audio.txt','LEEME.md','README.md','ARQUITECTURA.md','ESTABILIDAD.md','package.json','server.js','folder-picker.js','Elegir-carpeta.ps1','lib.js','catalog-storage.js','recuperar-catalogo.js','transcribir.py','transcription_progress.py','stream-progress.js','vision-response.js','meeting-minutes.js','Configurar-minutas.cmd','Configurar-minutas.ps1','preparar-modelo.py','Empaquetar.ps1')
+$allowedFiles = @('Iniciar.cmd','Iniciar.ps1','Configurar-herramientas.cmd','Configurar-herramientas.ps1','Ollama-local.ps1','requirements-audio.txt','LEEME.md','README.md','ARQUITECTURA.md','ESTABILIDAD.md','package.json','server.js','folder-picker.js','Elegir-carpeta.ps1','lib.js','catalog-storage.js','job-ledger.js','recuperar-catalogo.js','transcribir.py','transcription_progress.py','stream-progress.js','vision-response.js','meeting-minutes.js','Configurar-minutas.cmd','Configurar-minutas.ps1','preparar-modelo.py','Empaquetar.ps1')
 $allowedFolders = @('public','test','docs\adr')
 $codeExtensions = @('.js','.cjs','.mjs','.html','.css','.py','.md','.json','.txt','.ps1','.cmd','.sql')
 $entries = @()

@@ -1,10 +1,14 @@
 # Estabilización de la aplicación local
 
+## Versión 1.2.0 — Recuperación por video
+
+Implementa el incremento B: selección durable, revisión de entrada, confirmación atómica de resultados de texto/IA/hash y reintentos sin repetir videos confirmados. Véase [ADR-0003](docs/adr/0003-recuperacion-por-video.md). La cancelación inmediata sigue pendiente; pausar puede esperar al video actual. Los lotes previos a 1.2.0 no tienen plan recuperable: creá otro seleccionando pendientes. La migración de esquema 1 a 2 respalda primero y conserva los resultados existentes. No uses una versión anterior sobre el esquema actualizado.
+
 ## Versión 1.1.0 — Protección del catálogo
 
 Esta entrega implementa el incremento A de [ARQUITECTURA.md](ARQUITECTURA.md). Las decisiones, alternativas, pruebas y limitaciones se mantienen en [ADR-0001](docs/adr/0001-base-tecnologica.md) y [ADR-0002](docs/adr/0002-proteccion-catalogo.md).
 
-Incluye exclusión entre instancias compatibles, reserva del puerto antes de abrir datos, versión de esquema, comprobación de integridad, migración transaccional, respaldo anterior a la migración, respaldo manual verificado y restauración a otra carpeta. No declara terminada toda la estabilización: la confirmación por video, los reintentos sin repetir resultados, la cancelación uniforme y la revisión de calidad de IA siguen pendientes.
+Incluye exclusión entre instancias compatibles, reserva del puerto antes de abrir datos, versión de esquema, comprobación de integridad, migración transaccional, respaldo anterior a la migración, respaldo manual verificado y restauración a otra carpeta. No declara terminada toda la estabilización: la cancelación uniforme y la revisión de calidad de IA siguen pendientes; la confirmación por video se incorpora en 1.2.0.
 
 ## Actualizar
 
