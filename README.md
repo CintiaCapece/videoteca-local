@@ -8,7 +8,7 @@ Un catálogo privado para encontrar y organizar videos guardados en tu computado
 
 ## Estabilización local y decisiones
 
-La versión **1.2.0** suma lotes persistentes y confirmación por video: reanudar conserva la selección y omite resultados terminados. Mantiene la protección del catálogo y los respaldos verificados de 1.1.0. Consultá [ESTABILIDAD.md](ESTABILIDAD.md) y [ADR-0003](docs/adr/0003-recuperacion-por-video.md). Cerrá todas las instancias antes de actualizar. Los lotes antiguos requieren una nueva selección; la cancelación uniforme sigue pendiente.
+La versión **1.3.0** interrumpe las herramientas al pausar y mantiene el trabajo ocupado hasta confirmar su cierre. Las respuestas tardías no reemplazan resultados. Conserva los lotes durables y respaldos de las versiones anteriores. Consultá [ESTABILIDAD.md](ESTABILIDAD.md) y [ADR-0004](docs/adr/0004-pausa-y-cierre-seguro.md). Cerrá la aplicación antes de actualizar. Los lotes anteriores a 1.2.0 requieren una nueva selección. Abortar la espera HTTP no garantiza que Ollama deje de calcular de inmediato.
 
 
 ## Arquitectura y estabilización

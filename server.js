@@ -111,8 +111,17 @@ const server=http.createServer(async(req,res)=>{
   }catch(e){json(res,{error:e.code==='SQLITE_CONSTRAINT_UNIQUE'?'Esa carpeta ya está registrada.':e.message},400);}
 });
 server.listen(PORT,'127.0.0.1',()=>{
+  if(shuttingDown){server.close();return;}
   try{db=openDatabase(DATA);engine=createEngine(db,DATA);}catch(error){try{db?.close();}finally{console.error('No se pudo abrir el catálogo: '+error.message);process.exitCode=1;server.close();}return;}
   console.log(`\nVideoteca Local · ${origin}\nDatos: ${DATA}\nConservá esta ventana abierta. Ctrl+C para detener.\n`);
   if(process.argv.includes('--open')){const child=spawn('powershell.exe',['-NoProfile','-Command',`Start-Process '${origin}'`],{windowsHide:true,stdio:'ignore'});child.on('error',()=>{});}
 });
 server.on('error',e=>{console.error(e.code==='EADDRINUSE'?`El puerto ${PORT} ya está ocupado. Si la aplicación está abierta, visitá ${origin}.`:e.message);process.exitCode=1;});
+
+let shuttingDown=false;
+async function shutdown(){
+  if(shuttingDown)return;shuttingDown=true;
+  server.close();server.closeAllConnections();
+  try{await engine?.shutdown();db?.close();}catch(error){console.error('Error al cerrar: '+error.message);process.exitCode=1;}
+}
+process.on('SIGINT',shutdown);process.on('SIGTERM',shutdown);

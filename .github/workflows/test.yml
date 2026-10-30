@@ -13,7 +13,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - run: node --test test/catalog.test.js test/folder-picker.test.js test/transcription-selection.test.js test/stream-progress.test.js test/vision-response.test.js test/meeting-minutes.test.js test/catalog-storage.test.js test/catalog-startup.test.js test/job-recovery.test.js test/browser-demo.test.mjs
+      - run: node --test test/catalog.test.js test/folder-picker.test.js test/transcription-selection.test.js test/stream-progress.test.js test/vision-response.test.js test/meeting-minutes.test.js test/catalog-storage.test.js test/catalog-startup.test.js test/job-recovery.test.js test/cancellation.test.js test/browser-demo.test.mjs
       - name: Empaquetar y verificar la aplicación distribuida
         shell: powershell
         run: |

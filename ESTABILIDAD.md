@@ -1,14 +1,18 @@
 # Estabilización de la aplicación local
 
+## Versión 1.3.0 — Pausa y cierre seguro
+
+Al pausar se interrumpen procesos y solicitudes locales; «Deteniendo» conserva la exclusión hasta su cierre. Los resultados confirmados se conservan y el video abortado queda pendiente. Ctrl+C solicita pausa y espera al motor antes de cerrar SQLite. La interrupción interna de Ollama y el cierre de árboles arbitrarios de procesos no están garantizados. Véase [ADR-0004](docs/adr/0004-pausa-y-cierre-seguro.md). No se agrega eliminación ni cancelación terminal de trabajos.
+
 ## Versión 1.2.0 — Recuperación por video
 
-Implementa el incremento B: selección durable, revisión de entrada, confirmación atómica de resultados de texto/IA/hash y reintentos sin repetir videos confirmados. Véase [ADR-0003](docs/adr/0003-recuperacion-por-video.md). La cancelación inmediata sigue pendiente; pausar puede esperar al video actual. Los lotes previos a 1.2.0 no tienen plan recuperable: creá otro seleccionando pendientes. La migración de esquema 1 a 2 respalda primero y conserva los resultados existentes. No uses una versión anterior sobre el esquema actualizado.
+Implementa el incremento B: selección durable, revisión de entrada, confirmación atómica de resultados de texto/IA/hash y reintentos sin repetir videos confirmados. Véase [ADR-0003](docs/adr/0003-recuperacion-por-video.md). La pausa cooperativa de esta versión fue reemplazada por aborto de herramientas en 1.3.0. Los lotes previos a 1.2.0 no tienen plan recuperable: creá otro seleccionando pendientes. La migración de esquema 1 a 2 respalda primero y conserva los resultados existentes. No uses una versión anterior sobre el esquema actualizado.
 
 ## Versión 1.1.0 — Protección del catálogo
 
 Esta entrega implementa el incremento A de [ARQUITECTURA.md](ARQUITECTURA.md). Las decisiones, alternativas, pruebas y limitaciones se mantienen en [ADR-0001](docs/adr/0001-base-tecnologica.md) y [ADR-0002](docs/adr/0002-proteccion-catalogo.md).
 
-Incluye exclusión entre instancias compatibles, reserva del puerto antes de abrir datos, versión de esquema, comprobación de integridad, migración transaccional, respaldo anterior a la migración, respaldo manual verificado y restauración a otra carpeta. No declara terminada toda la estabilización: la cancelación uniforme y la revisión de calidad de IA siguen pendientes; la confirmación por video se incorpora en 1.2.0.
+Incluye exclusión entre instancias compatibles, reserva del puerto antes de abrir datos, versión de esquema, comprobación de integridad, migración transaccional, respaldo anterior a la migración, respaldo manual verificado y restauración a otra carpeta. No declara terminada toda la estabilización: la revisión de calidad de IA sigue pendiente; la pausa de herramientas se incorpora en 1.3.0 y la confirmación por video se incorpora en 1.2.0.
 
 ## Actualizar
 

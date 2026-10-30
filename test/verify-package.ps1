@@ -5,7 +5,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $ZipPath).Path)
 try {
     $names = @($archive.Entries | ForEach-Object { $_.FullName })
-    foreach ($required in @('server.js','lib.js','catalog-storage.js','job-ledger.js','recuperar-catalogo.js','package.json','public/index.html','public/app.js','test/fixtures/catalog-holder.cjs','docs/adr/0001-base-tecnologica.md','docs/adr/0002-proteccion-catalogo.md','docs/adr/0003-recuperacion-por-video.md','test/job-recovery.test.js','test/fixtures/job-crash.cjs')) {
+    foreach ($required in @('server.js','lib.js','catalog-storage.js','job-ledger.js','process-runner.js','recuperar-catalogo.js','package.json','public/index.html','public/app.js','test/fixtures/catalog-holder.cjs','docs/adr/0001-base-tecnologica.md','docs/adr/0002-proteccion-catalogo.md','docs/adr/0003-recuperacion-por-video.md','docs/adr/0004-pausa-y-cierre-seguro.md','test/cancellation.test.js','test/job-recovery.test.js','test/fixtures/job-crash.cjs')) {
         if ($names -notcontains $required) { throw "Falta en el ZIP: $required" }
     }
     if ($names | Where-Object { $_ -match '(^|/)(datos|\.venv|\.git|herramientas|node_modules|__pycache__)/|\.(sqlite|sqlite-wal|sqlite-shm|mp4|wav|pyc)$|(^|/)\.env' }) { throw 'El paquete contiene archivos ajenos a la distribucion.' }
