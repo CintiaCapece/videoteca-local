@@ -4,6 +4,12 @@ Un catálogo privado para encontrar y organizar videos guardados en tu computado
 
 **[Presentación y demo](https://cintiacapece.github.io/videoteca-local/)** · **[Descargar aplicación](https://cintiacapece.github.io/videoteca-local/downloads/VideotecaLocal.zip)** · **[Guía completa](LEEME.md)**
 
+
+## Arquitectura y estabilización
+
+Consultá [ARQUITECTURA.md](ARQUITECTURA.md) para el diseño propuesto, los módulos, la recuperación de trabajos, los respaldos y los criterios verificables de una versión estable. La aplicación local es la prioridad; el documento distingue el estado actual de las mejoras por implementar.
+
+
 ## Empezar en Windows
 
 1. Descargá y extraé el ZIP.
